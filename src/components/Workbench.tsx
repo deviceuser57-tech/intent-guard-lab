@@ -274,7 +274,7 @@ function RegistryPanel({ t, compiled, score, archetype }: { t: (k: string) => st
         {err && <div className="rounded border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{err}</div>}
         {!assets.length && <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{t("empty")}</div>}
         {assets.map((a) => {
-          const latest = a.versions[a.versions.length - 1];
+          const latest = a.versions[a.versions.length - 1]!;
           return (
             <Card key={a.id} title={`${a.name} · v${latest.version}`} right={<span className="rounded bg-secondary px-2 py-0.5 text-xs">{t(a.status)}</span>}>
               <div className="flex flex-wrap items-center gap-2 text-xs">

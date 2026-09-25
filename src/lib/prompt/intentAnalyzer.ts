@@ -78,7 +78,7 @@ export function analyzeIntent(input: string, override?: Archetype | null): Inten
   const clauses = (input.match(/[,;.\n]| and | then | و/g) || []).length;
   const complexity: Complexity = words > 60 || clauses > 6 ? "complex" : words > 18 || clauses > 2 ? "moderate" : "simple";
 
-  const variables = Array.from(new Set([...input.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1])));
+  const variables = Array.from(new Set([...input.matchAll(/\{\{\s*(\w+)\s*\}\}/g)].map((m) => m[1] as string)));
   const confidence = override ? 1 : Math.min(0.95, 0.35 + best.score * 0.2);
 
   return {
