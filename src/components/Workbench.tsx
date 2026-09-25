@@ -12,7 +12,7 @@ const ARCHS: Archetype[] = ["software", "business", "copywriting", "analytics", 
 const ALL_COMPONENTS: Component[] = ["role", "context", "task", "constraints", "output_contract", "examples", "reasoning", "safety", "variables", "citations", "tools", "evaluation_rubric"];
 type Tab = "intent" | "spec" | "compiled" | "security" | "registry";
 
-const riskTone: Record<string, string> = { low: "bg-success/15 text-success", medium: "bg-warning/15 text-warning", high: "bg-destructive/15 text-destructive", critical: "bg-destructive text-destructive-foreground" };
+const riskTone: Record<"low" | "medium" | "high" | "critical", string> = { low: "bg-success/15 text-success", medium: "bg-warning/15 text-warning", high: "bg-destructive/15 text-destructive", critical: "bg-destructive text-destructive-foreground" };
 
 function Card({ title, children, right }: { title?: string; children: ReactNode; right?: ReactNode }) {
   return (
