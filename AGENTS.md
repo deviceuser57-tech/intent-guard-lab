@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Prompt engines live in src/lib/prompt/* as pure, deterministic client-side modules; registry persists to localStorage — no backend needed for static analysis.
