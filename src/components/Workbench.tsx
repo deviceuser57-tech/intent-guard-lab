@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import { analyzeIntent } from "@/lib/prompt/intentAnalyzer";
 import { compile, defaultSpec, DEFAULT_ADV } from "@/lib/prompt/compiler";
 import { redTeam } from "@/lib/prompt/redTeam";
@@ -8,6 +8,7 @@ import { toOpenAI, toAnthropic, toRaw, validateOpenAI, validateAnthropic } from 
 import type { AdvancedControls, Archetype, Component, IntentAnalysis, Mode, Specification } from "@/lib/prompt/types";
 import { makeT, type Lang } from "@/lib/i18n";
 import { useServerFn } from "@tanstack/react-start";
+import { gsap } from "gsap";
 import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
 
 const L2: Record<string, { en: string; ar: string }> = {
@@ -47,8 +48,13 @@ const riskTone: Record<"low" | "medium" | "high" | "critical", string> = { low: 
 
 function Card({ title, children, right }: { title?: string; children: ReactNode; right?: ReactNode }) {
   return (
-    <section className="rounded-lg border bg-card p-4">
-      {title && <div className="mb-3 flex items-center justify-between gap-2"><h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{title}</h3>{right}</div>}
+    <section className="rounded-lg border bg-card/80 backdrop-blur-lg border-white/20 p-4 shadow-xl">
+      {title && (
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{title}</h3>
+          {right}
+        </div>
+      )}
       {children}
     </section>
   );
@@ -63,6 +69,8 @@ function Pre({ children }: { children: string }) {
 const inputCls = "w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
 export function Workbench() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const [lang, setLang] = useState<Lang>("en");
   const t = useMemo(() => { const b = makeT(lang); return (k: string) => L2[k]?.[lang] ?? b(k); }, [lang]);
   const [aiOv, setAiOv] = useState<{ system: string; user: string; changes: string[] } | null>(null);
@@ -91,8 +99,8 @@ export function Workbench() {
   const tabLabel: Record<Tab, string> = { intent: "tabIntent", spec: "tabSpec", compiled: "tabCompiled", security: "tabSecurity", playground: "tabPlayground", registry: "tabRegistry" };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
+    <div ref={containerRef} className="min-h-screen bg-background text-foreground">
+      <header ref={headerRef} className="border-b">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded bg-primary font-mono text-sm font-bold text-primary-foreground">{"{P}"}</div>
