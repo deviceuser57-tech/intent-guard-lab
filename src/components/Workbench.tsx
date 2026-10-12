@@ -7,10 +7,29 @@ import { registry, diffLines, type PromptAsset, type AuditEntry, type Lifecycle 
 import { toOpenAI, toAnthropic, toRaw, validateOpenAI, validateAnthropic } from "@/lib/prompt/exporters";
 import type { Archetype, Component, IntentAnalysis, Mode, Specification } from "@/lib/prompt/types";
 import { makeT, type Lang } from "@/lib/i18n";
+import { useServerFn } from "@tanstack/react-start";
+import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
+
+const L2: Record<string, { en: string; ar: string }> = {
+  tabPlayground: { en: "Live Playground", ar: "ساحة الاختبار الحية" },
+  aiOpt: { en: "AI Optimizer · Auto-Revise", ar: "المحسّن الذكي · مراجعة تلقائية" },
+  aiDesc: { en: "A live AI model rewrites the prompt using current best practices, fixes security findings and tailors it to the target model.", ar: "يعيد نموذج ذكاء اصطناعي كتابة الموجّه وفق أحدث الممارسات ويعالج الملاحظات الأمنية ويكيّفه للنموذج المستهدف." },
+  target: { en: "Target model", ar: "النموذج المستهدف" },
+  optimize: { en: "Optimize with AI", ar: "حسّن بالذكاء الاصطناعي" },
+  evolve: { en: "Auto-evolve (3 rounds)", ar: "تطوير تلقائي (3 جولات)" },
+  revert: { en: "Revert to rule-based", ar: "العودة للنسخة القياسية" },
+  working: { en: "Working…", ar: "جارٍ العمل…" },
+  changes: { en: "AI changes", ar: "تغييرات الذكاء الاصطناعي" },
+  fillVars: { en: "Fill variables", ar: "املأ المتغيرات" },
+  runLive: { en: "Run against live AI", ar: "شغّل على نموذج حي" },
+  output: { en: "Model output", ar: "مخرجات النموذج" },
+  judge: { en: "AI judge score", ar: "تقييم الحَكَم الذكي" },
+  noVars: { en: "No variables in this prompt.", ar: "لا توجد متغيرات." },
+};
 
 const ARCHS: Archetype[] = ["software", "business", "copywriting", "analytics", "agents", "research", "creative", "general"];
 const ALL_COMPONENTS: Component[] = ["role", "context", "task", "constraints", "output_contract", "examples", "reasoning", "safety", "variables", "citations", "tools", "evaluation_rubric"];
-type Tab = "intent" | "spec" | "compiled" | "security" | "registry";
+type Tab = "intent" | "spec" | "compiled" | "security" | "playground" | "registry";
 
 const riskTone: Record<"low" | "medium" | "high" | "critical", string> = { low: "bg-success/15 text-success", medium: "bg-warning/15 text-warning", high: "bg-destructive/15 text-destructive", critical: "bg-destructive text-destructive-foreground" };
 
@@ -33,7 +52,8 @@ const inputCls = "w-full rounded-md border bg-background px-3 py-2 text-sm focus
 
 export function Workbench() {
   const [lang, setLang] = useState<Lang>("en");
-  const t = useMemo(() => makeT(lang), [lang]);
+  const t = useMemo(() => { const b = makeT(lang); return (k: string) => L2[k]?.[lang] ?? b(k); }, [lang]);
+  const [aiOv, setAiOv] = useState<{ system: string; user: string; changes: string[] } | null>(null);
   const [mode, setMode] = useState<Mode>("quick");
   const [tab, setTab] = useState<Tab>("compiled");
   const [input, setInput] = useState("");
@@ -43,19 +63,20 @@ export function Workbench() {
 
   useEffect(() => { document.documentElement.lang = lang; document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"; }, [lang]);
 
-  const compiled = useMemo(() => (spec && analysis ? compile(spec, analysis) : null), [spec, analysis]);
+  const base = useMemo(() => (spec && analysis ? compile(spec, analysis) : null), [spec, analysis]);
+  const compiled = useMemo(() => (base && aiOv ? { ...base, system: aiOv.system, user: aiOv.user } : base), [base, aiOv]);
   const report = useMemo(() => (compiled ? redTeam(compiled) : null), [compiled]);
   const evalR = useMemo(() => (compiled && spec && analysis ? evaluate(compiled, spec, analysis) : null), [compiled, spec, analysis]);
 
   const run = () => {
     if (!input.trim()) return;
     const a = analyzeIntent(input, override || null);
-    setAnalysis(a); setSpec(defaultSpec(input, a)); setTab(mode === "quick" ? "compiled" : "intent");
+    setAiOv(null); setAnalysis(a); setSpec(defaultSpec(input, a)); setTab(mode === "quick" ? "compiled" : "intent");
   };
 
-  const tabs: Tab[] = mode === "quick" ? ["compiled", "security"] : mode === "expert" ? ["intent", "spec", "compiled", "security"] : ["intent", "spec", "compiled", "security", "registry"];
+  const tabs: Tab[] = mode === "quick" ? ["compiled", "security", "playground"] : mode === "expert" ? ["intent", "spec", "compiled", "security", "playground"] : ["intent", "spec", "compiled", "security", "playground", "registry"];
   useEffect(() => { if (!tabs.includes(tab)) setTab("compiled"); }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tabLabel: Record<Tab, string> = { intent: "tabIntent", spec: "tabSpec", compiled: "tabCompiled", security: "tabSecurity", registry: "tabRegistry" };
+  const tabLabel: Record<Tab, string> = { intent: "tabIntent", spec: "tabSpec", compiled: "tabCompiled", security: "tabSecurity", playground: "tabPlayground", registry: "tabRegistry" };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -107,7 +128,8 @@ export function Workbench() {
             !analysis || !spec || !compiled || !report || !evalR ? <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">{t("emptyState")}</div> :
             tab === "intent" ? <IntentPanel a={analysis} t={t} /> :
             tab === "spec" ? <SpecPanel spec={spec} setSpec={setSpec} t={t} /> :
-            tab === "compiled" ? <CompiledPanel c={compiled} t={t} /> :
+            tab === "compiled" ? <div className="space-y-4"><AiOptimizer c={compiled} findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)} ov={aiOv} setOv={setAiOv} t={t} /><CompiledPanel c={compiled} t={t} /></div> :
+            tab === "playground" ? <Playground c={compiled} t={t} /> :
             <SecurityPanel report={report} evalR={evalR} t={t} />}
         </div>
       </main>
@@ -306,6 +328,77 @@ function RegistryPanel({ t, compiled, score, archetype }: { t: (k: string) => st
           ))}
         </ol>
       </Card>
+    </div>
+  );
+}
+
+function AiOptimizer({ c, findings, ov, setOv, t }: { c: NonNullable<ReturnType<typeof compile>>; findings: string[]; ov: { changes: string[] } | null; setOv: (v: { system: string; user: string; changes: string[] } | null) => void; t: (k: string) => string }) {
+  const opt = useServerFn(optimizePrompt);
+  const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning">("openai");
+  const [busy, setBusy] = useState(""); const [err, setErr] = useState("");
+  const go = async (rounds: number) => {
+    setErr(""); let cur = { system: c.system, user: c.user }; const all: string[] = [];
+    try {
+      for (let i = 0; i < rounds; i++) {
+        setBusy(`${t("working")} ${rounds > 1 ? `${i + 1}/${rounds}` : ""}`);
+        const r = await opt({ data: { ...cur, findings: i === 0 ? findings : [], target } });
+        if (!r.ok) { setErr(r.error); break; }
+        cur = { system: r.system, user: r.user }; all.push(...r.changes.map((x) => rounds > 1 ? `[${i + 1}] ${x}` : x));
+        setOv({ ...cur, changes: [...all] });
+      }
+    } catch (e) { setErr((e as Error).message); }
+    setBusy("");
+  };
+  return (
+    <Card title={t("aiOpt")} right={ov && <button onClick={() => setOv(null)} className="rounded border px-2 py-1 text-xs hover:bg-accent">{t("revert")}</button>}>
+      <p className="mb-3 text-sm text-muted-foreground">{t("aiDesc")}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={target} onChange={(e) => setTarget(e.target.value as typeof target)} className={`${inputCls} w-auto`} aria-label={t("target")}>
+          <option value="openai">OpenAI GPT</option><option value="anthropic">Anthropic Claude (XML)</option><option value="reasoning">Reasoning models</option>
+        </select>
+        <button disabled={!!busy} onClick={() => go(1)} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-40">{t("optimize")}</button>
+        <button disabled={!!busy} onClick={() => go(3)} className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-40">{t("evolve")}</button>
+        {busy && <span className="text-xs text-muted-foreground">{busy}</span>}
+      </div>
+      {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {ov && ov.changes.length > 0 && <div className="mt-3"><h4 className="mb-1 text-xs text-muted-foreground">{t("changes")}</h4><ul className="list-disc space-y-0.5 ps-5 text-sm">{ov.changes.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
+    </Card>
+  );
+}
+
+function Playground({ c, t }: { c: NonNullable<ReturnType<typeof compile>>; t: (k: string) => string }) {
+  const run = useServerFn(runPrompt); const judge = useServerFn(judgeOutput);
+  const vars = useMemo(() => Array.from(new Set([...`${c.system}\n${c.user}`.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]!))), [c]);
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [out, setOut] = useState(""); const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
+  const [j, setJ] = useState<{ score: number; verdict: string; issues: string[] } | null>(null);
+  const sub = (s: string) => s.replace(/\{\{(\w+)\}\}/g, (_, k) => vals[k] ?? `{{${k}}}`);
+  const go = async () => {
+    setBusy(true); setErr(""); setOut(""); setJ(null);
+    try {
+      const system = sub(c.system), user = sub(c.user);
+      const r = await run({ data: { system, user } });
+      if (!r.ok) setErr(r.error); else {
+        setOut(r.text);
+        const g = await judge({ data: { system, user, output: r.text } });
+        if (g.ok) setJ(g); else setErr(g.error);
+      }
+    } catch (e) { setErr((e as Error).message); }
+    setBusy(false);
+  };
+  return (
+    <div className="grid gap-4 md:grid-cols-[300px_1fr]">
+      <Card title={t("fillVars")}>
+        <div className="space-y-2">
+          {vars.length ? vars.map((v) => <div key={v}><label className="mb-1 block font-mono text-xs text-muted-foreground">{`{{${v}}}`}</label><input className={inputCls} value={vals[v] ?? ""} onChange={(e) => setVals({ ...vals, [v]: e.target.value })} /></div>) : <p className="text-sm text-muted-foreground">{t("noVars")}</p>}
+        </div>
+        <button disabled={busy} onClick={go} className="mt-4 w-full rounded-md bg-primary py-2 text-sm text-primary-foreground disabled:opacity-40">{busy ? t("working") : t("runLive")}</button>
+        {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      </Card>
+      <div className="space-y-4">
+        <Card title={t("output")} right={out ? <CopyBtn text={out} t={t} /> : undefined}>{out ? <Pre>{out}</Pre> : <p className="text-sm text-muted-foreground">—</p>}</Card>
+        {j && <Card title={`${t("judge")} · ${j.score}/100`}><p className="text-sm">{j.verdict}</p>{j.issues.length > 0 && <ul className="mt-2 list-disc ps-5 text-sm text-muted-foreground">{j.issues.map((x, i) => <li key={i}>{x}</li>)}</ul>}</Card>}
+      </div>
     </div>
   );
 }
