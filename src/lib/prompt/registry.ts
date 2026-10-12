@@ -13,11 +13,15 @@ const load = (): State => {
   if (typeof window === "undefined") return { assets: [], audit: [] };
   try { return JSON.parse(localStorage.getItem(KEY) || "") as State; } catch { return { assets: [], audit: [] }; }
 };
-const save = (s: State) => localStorage.setItem(KEY, JSON.stringify(s));
+let saveTimeout: NodeJS.Timeout | null = null;
+const debouncedSave = (s: State) => {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => localStorage.setItem(KEY, JSON.stringify(s)), 300);
+};
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function log(s: State, assetId: string, action: string, detail: string) {
-  s.audit = [...s.audit, Object.freeze({ id: uid(), at: new Date().toISOString(), assetId, action, detail })];
+  s.audit.push(Object.freeze({ id: uid(), at: new Date().toISOString(), assetId, action, detail }));
 }
 
 export function bump(v: string, kind: "major" | "minor" | "patch"): string {
@@ -41,7 +45,9 @@ export const registry = {
   create(name: string, archetype: Archetype, prompt: CompiledPrompt, securityScore: number): State {
     const s = load(); const id = uid();
     s.assets.push({ id, name, archetype, status: "draft", versions: [{ version: "1.0.0", createdAt: new Date().toISOString(), prompt, note: "Initial version", securityScore }] });
-    log(s, id, "create", `${name} v1.0.0`); save(s); return s;
+    log(s, id, "create", `${name} v1.0.0`);
+    debouncedSave(s);
+    return s;
   },
   addVersion(id: string, prompt: CompiledPrompt, kind: "major" | "minor" | "patch", note: string, securityScore: number): State {
     const s = load(); const a = s.assets.find((x) => x.id === id); if (!a) return s;
@@ -55,6 +61,9 @@ export const registry = {
     if (!TRANSITIONS[a.status].includes(to)) throw new Error(`Invalid transition ${a.status} → ${to}`);
     const latest = a.versions[a.versions.length - 1]!;
     if (to === "published" && latest.securityScore < 60) throw new Error("Security score below 60 — publishing blocked");
-    log(s, id, "transition", `${a.status} → ${to}`); a.status = to; save(s); return s;
+    log(s, id, "transition", `${a.status} → ${to}`);
+    a.status = to;
+    debouncedSave(s);
+    return s;
   },
 };

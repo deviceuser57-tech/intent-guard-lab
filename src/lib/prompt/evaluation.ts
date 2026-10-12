@@ -19,7 +19,8 @@ export function evaluate(p: CompiledPrompt, spec: Specification, a: IntentAnalys
   const goalWords = spec.goal.trim().split(/\s+/).length;
   const specificity = clamp(30 + Math.min(goalWords, 40) + spec.constraints.length * 5 + (spec.audience ? 10 : 0) + (spec.outputSchema ? 10 : 0));
   const correctness = clamp((sys.includes("# role") ? 25 : 0) + (sys.includes("# output contract") ? 25 : 0) + (sys.includes("# constraints") ? 25 : 0) + (p.user.includes("# task") ? 25 : 0));
-  const groundedness = clamp(40 + (/don't know|mark missing|flag assumptions|say so/.test(sys) ? 35 : 0) + (sys.includes("# self-check") ? 25 : 0));
+const groundednessPatterns = [/don't know|mark missing|flag assumptions|say so/, /# self-check/];
+
   const citation = a.archetype === "research" ? clamp(sys.includes("# citations") ? 95 : 20) : 100;
   const t = { system: estimateTokens(p.system), user: estimateTokens(p.user), total: 0 };
   t.total = t.system + t.user;

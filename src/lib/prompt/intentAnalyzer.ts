@@ -55,8 +55,9 @@ export function analyzeIntent(input: string, override?: Archetype | null): Inten
   const text = ` ${input.toLowerCase()} `;
   let best = { type: "general_inquiry" as TaskType, archetype: "general" as Archetype, score: 0 };
   const keywords: string[] = [];
+  const wordsSet = new Set(text.split(/\s+/));
   for (const r of TASK_RULES) {
-    const hits = r.words.filter((w) => text.includes(w));
+    const hits = r.words.filter((w) => wordsSet.has(w));
     keywords.push(...hits);
     if (hits.length > best.score) best = { type: r.type, archetype: r.archetype, score: hits.length };
   }
@@ -66,8 +67,9 @@ export function analyzeIntent(input: string, override?: Archetype | null): Inten
 
   let risk: RiskLevel = "low";
   const riskSignals: string[] = [];
+  const riskWordsSet = new Set(text.split(/\s+/));
   for (const r of RISK_RULES) {
-    const hits = r.words.filter((w) => text.includes(w));
+    const hits = r.words.filter((w) => riskWordsSet.has(w));
     if (hits.length) {
       riskSignals.push(`${r.label}: ${hits.join(", ")}`);
       if (risk === "low" || (risk === "medium" && r.level !== "medium") || (risk === "high" && r.level === "critical")) risk = r.level;
