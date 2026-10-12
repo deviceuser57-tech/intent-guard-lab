@@ -48,12 +48,12 @@ const riskTone: Record<"low" | "medium" | "high" | "critical", string> = { low: 
 
 function Card({ title, children, right }: { title?: string; children: ReactNode; right?: ReactNode }) {
   return (
-    <section className="rounded-lg border bg-card/80 backdrop-blur-lg border-white/20 p-4 shadow-xl">
+    <section className="glass-card rounded-lg border bg-card/80 backdrop-blur-lg border-white/20 p-4 shadow-xl">
       {title && (
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{title}</h3>
           {right}
-        </div>
+        <\/div>
       )}
       {children}
     </section>

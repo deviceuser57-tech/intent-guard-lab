@@ -141,6 +141,20 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* Glass‑morphism card styling */
+.glass-card {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+}
+
+.dark .glass-card {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+
 @layer base {
   * {
     border-color: var(--color-border);
