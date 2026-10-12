@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { analyzeIntent } from "@/lib/prompt/intentAnalyzer";
-import { compile, defaultSpec } from "@/lib/prompt/compiler";
+import { compile, defaultSpec, DEFAULT_ADV } from "@/lib/prompt/compiler";
 import { redTeam } from "@/lib/prompt/redTeam";
 import { evaluate } from "@/lib/prompt/evaluation";
 import { registry, diffLines, type PromptAsset, type AuditEntry, type Lifecycle } from "@/lib/prompt/registry";
 import { toOpenAI, toAnthropic, toRaw, validateOpenAI, validateAnthropic } from "@/lib/prompt/exporters";
-import type { Archetype, Component, IntentAnalysis, Mode, Specification } from "@/lib/prompt/types";
+import type { AdvancedControls, Archetype, Component, IntentAnalysis, Mode, Specification } from "@/lib/prompt/types";
 import { makeT, type Lang } from "@/lib/i18n";
 import { useServerFn } from "@tanstack/react-start";
 import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
@@ -24,6 +24,18 @@ const L2: Record<string, { en: string; ar: string }> = {
   runLive: { en: "Run against live AI", ar: "شغّل على نموذج حي" },
   output: { en: "Model output", ar: "مخرجات النموذج" },
   judge: { en: "AI judge score", ar: "تقييم الحَكَم الذكي" },
+  adv: { en: "Truth & grounding controls", ar: "ضوابط الحقيقة والإسناد" },
+  execDoc: { en: "Complete executive document with ready tables", ar: "ملف استراتيجي تنفيذي كامل بجداول جاهزة" },
+  selfRT: { en: "Internal red-team before answering", ar: "فحص Red-team داخلي قبل الرد" },
+  brutal: { en: "Brutal honesty (facts even if unwelcome)", ar: "الحقيقة الصادمة (حقائق حتى لو لم ترضِ)" },
+  conf: { en: "Confidence score & calculation method", ar: "درجة الثقة وطريقة الحساب" },
+  c_off: { en: "Off", ar: "بدون" },
+  c_evidence_weighted: { en: "Evidence-weighted", ar: "مرجّح بقوة الدليل" },
+  c_source_count: { en: "Source count", ar: "عدد المصادر" },
+  c_bayesian: { en: "Bayesian (prior → posterior)", ar: "بايزي (احتمال قبلي ← بعدي)" },
+  docs: { en: "Reference documents (.txt .md .csv .json)", ar: "مستندات مرجعية (.txt .md .csv .json)" },
+  docsW: { en: "Answer from documents", ar: "الرد من المستندات" },
+  webW: { en: "web / general knowledge", ar: "الإنترنت / المعرفة العامة" },
   noVars: { en: "No variables in this prompt.", ar: "لا توجد متغيرات." },
 };
 
@@ -154,6 +166,7 @@ function IntentPanel({ a, t }: { a: IntentAnalysis; t: (k: string) => string }) 
         <Row k={t("persona")} v={a.persona} />
       </Card>
       <div className="space-y-4">
+        <AdvancedCard adv={spec.advanced ?? DEFAULT_ADV} set={(v) => up("advanced", v)} t={t} />
         <Card title={t("components")}><div className="flex flex-wrap gap-1.5">{a.components.map((c) => <span key={c} className="rounded bg-secondary px-2 py-0.5 font-mono text-xs">{c}</span>)}</div></Card>
         <Card title={t("signals")}>{a.riskSignals.length ? <ul className="list-disc space-y-1 ps-5 text-sm">{a.riskSignals.map((s) => <li key={s}>{s}</li>)}</ul> : <p className="text-sm text-muted-foreground">{t("none")}</p>}</Card>
         <Card title={t("keywords")}><p className="font-mono text-xs text-muted-foreground">{a.keywords.join(" · ") || t("none")}</p></Card>
@@ -400,5 +413,49 @@ function Playground({ c, t }: { c: NonNullable<ReturnType<typeof compile>>; t: (
         {j && <Card title={`${t("judge")} · ${j.score}/100`}><p className="text-sm">{j.verdict}</p>{j.issues.length > 0 && <ul className="mt-2 list-disc ps-5 text-sm text-muted-foreground">{j.issues.map((x, i) => <li key={i}>{x}</li>)}</ul>}</Card>}
       </div>
     </div>
+  );
+}
+
+function AdvancedCard({ adv, set, t }: { adv: AdvancedControls; set: (a: AdvancedControls) => void; t: (k: string) => string }) {
+  const up = <K extends keyof AdvancedControls>(k: K, v: AdvancedControls[K]) => set({ ...adv, [k]: v });
+  const chk = (k: "executiveDoc" | "selfRedTeam" | "brutalTruth", label: string) => (
+    <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-primary" checked={adv[k]} onChange={(e) => up(k, e.target.checked)} />{label}</label>
+  );
+  const onFiles = async (files: FileList | null) => {
+    if (!files) return;
+    const read = await Promise.all(Array.from(files).map(async (f) => ({ name: f.name, content: (await f.text()).slice(0, 80000) })));
+    up("documents", [...adv.documents, ...read]);
+  };
+  return (
+    <Card title={t("adv")}>
+      <div className="space-y-3">
+        {chk("executiveDoc", t("execDoc"))}
+        {chk("selfRedTeam", t("selfRT"))}
+        {chk("brutalTruth", t("brutal"))}
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">{t("conf")}</p>
+          <div className="grid grid-cols-2 gap-1">
+            {(["off", "evidence_weighted", "source_count", "bayesian"] as const).map((m) => (
+              <label key={m} className="flex items-center gap-2 text-sm"><input type="radio" name="conf" className="accent-primary" checked={adv.confidence === m} onChange={() => up("confidence", m)} />{t(`c_${m}`)}</label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">{t("docs")}</p>
+          <input type="file" multiple accept=".txt,.md,.csv,.json,text/*" className="text-xs" onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+          {adv.documents.length > 0 && (
+            <>
+              <ul className="mt-2 space-y-1">{adv.documents.map((d, i) => (
+                <li key={i} className="flex items-center justify-between rounded border px-2 py-1 text-xs"><span className="truncate">{d.name} · {Math.ceil(d.content.length / 4)} tok</span><button onClick={() => up("documents", adv.documents.filter((_, j) => j !== i))}>×</button></li>
+              ))}</ul>
+              <div className="mt-2">
+                <input type="range" min={0} max={100} step={5} value={adv.docsWeight} onChange={(e) => up("docsWeight", Number(e.target.value))} className="w-full accent-primary" />
+                <p className="text-xs">{t("docsW")}: <b>{adv.docsWeight}%</b> · {t("webW")}: <b>{100 - adv.docsWeight}%</b></p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
