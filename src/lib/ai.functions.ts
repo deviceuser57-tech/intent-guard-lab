@@ -6,13 +6,13 @@ const MODEL = "openai/gpt-6-astra";
 type Res = { ok: true; text: string } | { ok: false; status: number; error: string };
 
 async function callResponses(instructions: string, input: string, schema?: { name: string; schema: object }): Promise<Res> {
-  const key = process.env.LOVABLE_API_KEY;
+  const key = process.env["LOVABLE_API_KEY"];
   if (!key) return { ok: false, status: 401, error: "AI is not configured." };
   const body: Record<string, unknown> = {
     model: MODEL, instructions, input, stream: true, store: false,
     reasoning: { effort: "low" },
   };
-  if (schema) body.text = { format: { type: "json_schema", name: schema.name, schema: schema.schema, strict: true } };
+  if (schema) body["text"] = { format: { type: "json_schema", name: schema.name, schema: schema.schema, strict: true } };
   const r = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "X-Lovable-AIG-SDK": "fetch" },
