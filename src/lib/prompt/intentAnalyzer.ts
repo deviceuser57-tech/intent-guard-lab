@@ -53,11 +53,10 @@ export function componentsFor(archetype: Archetype, complexity: Complexity, risk
 
 export function analyzeIntent(input: string, override?: Archetype | null): IntentAnalysis {
   const text = ` ${input.toLowerCase()} `;
-  const wordSet = new Set(text.split(/\s+/));
   let best = { type: "general_inquiry" as TaskType, archetype: "general" as Archetype, score: 0 };
   const keywords: string[] = [];
   for (const r of TASK_RULES) {
-    const hits = r.words.filter((w) => wordSet.has(w));
+    const hits = r.words.filter((w) => text.includes(w));
     keywords.push(...hits);
     if (hits.length > best.score) best = { type: r.type, archetype: r.archetype, score: hits.length };
   }
