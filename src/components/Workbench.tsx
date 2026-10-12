@@ -166,7 +166,7 @@ function IntentPanel({ a, t }: { a: IntentAnalysis; t: (k: string) => string }) 
         <Row k={t("persona")} v={a.persona} />
       </Card>
       <div className="space-y-4">
-        <AdvancedCard adv={spec.advanced ?? DEFAULT_ADV} set={(v) => up("advanced", v)} t={t} />
+
         <Card title={t("components")}><div className="flex flex-wrap gap-1.5">{a.components.map((c) => <span key={c} className="rounded bg-secondary px-2 py-0.5 font-mono text-xs">{c}</span>)}</div></Card>
         <Card title={t("signals")}>{a.riskSignals.length ? <ul className="list-disc space-y-1 ps-5 text-sm">{a.riskSignals.map((s) => <li key={s}>{s}</li>)}</ul> : <p className="text-sm text-muted-foreground">{t("none")}</p>}</Card>
         <Card title={t("keywords")}><p className="font-mono text-xs text-muted-foreground">{a.keywords.join(" · ") || t("none")}</p></Card>
@@ -199,6 +199,7 @@ function SpecPanel({ spec, setSpec, t }: { spec: Specification; setSpec: (s: Spe
         </div>
       </Card>
       <div className="space-y-4">
+          <AdvancedCard adv={spec.advanced ?? DEFAULT_ADV} set={(v) => up("advanced", v)} t={t} />
         <Card title={t("components")}>
           <div className="grid grid-cols-2 gap-2">
             {ALL_COMPONENTS.map((c) => (
