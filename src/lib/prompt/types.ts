@@ -41,6 +41,17 @@ export interface Specification {
   examples: string;
   reasoning: "none" | "brief" | "step_by_step";
   maxWords: number;
+  advanced?: AdvancedControls;
+}
+
+export type ConfidenceMode = "off" | "evidence_weighted" | "source_count" | "bayesian";
+export interface AdvancedControls {
+  executiveDoc: boolean;
+  confidence: ConfidenceMode;
+  selfRedTeam: boolean;
+  brutalTruth: boolean;
+  documents: { name: string; content: string }[];
+  docsWeight: number; // 0-100, remainder = web / general knowledge
 }
 
 export interface CompiledPrompt {

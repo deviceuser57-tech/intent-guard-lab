@@ -58,7 +58,7 @@ const SYS_OPT = `You are a world-class prompt engineer (2026 best practices). Re
 Return JSON with system, user, and changes (short bullet list of what you improved).`;
 
 export const optimizePrompt = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ system: z.string().max(40000), user: z.string().max(40000), findings: z.array(z.string()).max(50), target: z.enum(["openai", "anthropic", "reasoning"]) }))
+  .inputValidator(z.object({ system: z.string().max(400000), user: z.string().max(400000), findings: z.array(z.string()).max(50), target: z.enum(["openai", "anthropic", "reasoning"]) }))
   .handler(async ({ data }) => {
     const r = await callResponses(SYS_OPT.replace("{target}", data.target),
       `SYSTEM PROMPT:\n${data.system}\n\nUSER PROMPT:\n${data.user}\n\nFINDINGS TO FIX:\n${data.findings.join("\n") || "none"}`,
@@ -69,11 +69,11 @@ export const optimizePrompt = createServerFn({ method: "POST" })
   });
 
 export const runPrompt = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ system: z.string().max(40000), user: z.string().max(40000) }))
+  .inputValidator(z.object({ system: z.string().max(400000), user: z.string().max(400000) }))
   .handler(async ({ data }) => callResponses(data.system, data.user));
 
 export const judgeOutput = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ system: z.string().max(40000), user: z.string().max(40000), output: z.string().max(60000) }))
+  .inputValidator(z.object({ system: z.string().max(400000), user: z.string().max(400000), output: z.string().max(60000) }))
   .handler(async ({ data }) => {
     const r = await callResponses("You are a strict evaluator of AI outputs. Score how well the OUTPUT follows the prompt's instructions, format and constraints (0-100). Return JSON.",
       `SYSTEM:\n${data.system}\n\nUSER:\n${data.user}\n\nOUTPUT:\n${data.output}`,
