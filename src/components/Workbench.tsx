@@ -85,7 +85,7 @@ export function Workbench() {
 
   // Debounce spec edits (300 ms) so compile / red-team / evaluation don't run on every keystroke.
   const [dSpec, setDSpec] = useState<Specification | null>(null);
-  const pending = spec !== dSpec;
+  const pending = spec !== dSpec; void pending;
   useEffect(() => { if (!spec || !dSpec) { setDSpec(spec); return; } const h = setTimeout(() => setDSpec(spec), 300); return () => clearTimeout(h); }, [spec]); // eslint-disable-line react-hooks/exhaustive-deps
   const base = useMemo(() => (dSpec && analysis ? compile(dSpec, analysis) : null), [dSpec, analysis]);
   const compiled = useMemo(() => (base && aiOv ? { ...base, system: aiOv.system, user: aiOv.user } : base), [base, aiOv]);
