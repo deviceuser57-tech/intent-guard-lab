@@ -51,13 +51,19 @@ export function componentsFor(archetype: Archetype, complexity: Complexity, risk
   return [...c];
 }
 
+const esc = (w: string) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Compiled once at module load: one alternation regex per rule (substring semantics preserved, e.g. "analy" matches "analysis").
+const compileRule = (words: string[]) => new RegExp(words.map(esc).join("|"), "g");
+const TASK_RX = TASK_RULES.map((r) => ({ ...r, rx: compileRule(r.words) }));
+const RISK_RX = RISK_RULES.map((r) => ({ ...r, rx: compileRule(r.words) }));
+const hitsOf = (rx: RegExp, text: string) => { rx.lastIndex = 0; return Array.from(new Set(text.match(rx) ?? [])); };
+
 export function analyzeIntent(input: string, override?: Archetype | null): IntentAnalysis {
   const text = ` ${input.toLowerCase()} `;
   let best = { type: "general_inquiry" as TaskType, archetype: "general" as Archetype, score: 0 };
   const keywords: string[] = [];
-  const wordsSet = new Set(text.split(/\s+/));
-  for (const r of TASK_RULES) {
-    const hits = r.words.filter((w) => wordsSet.has(w));
+  for (const r of TASK_RX) {
+    const hits = hitsOf(r.rx, text);
     keywords.push(...hits);
     if (hits.length > best.score) best = { type: r.type, archetype: r.archetype, score: hits.length };
   }
@@ -67,9 +73,8 @@ export function analyzeIntent(input: string, override?: Archetype | null): Inten
 
   let risk: RiskLevel = "low";
   const riskSignals: string[] = [];
-  const riskWordsSet = new Set(text.split(/\s+/));
-  for (const r of RISK_RULES) {
-    const hits = r.words.filter((w) => riskWordsSet.has(w));
+  for (const r of RISK_RX) {
+    const hits = hitsOf(r.rx, text);
     if (hits.length) {
       riskSignals.push(`${r.label}: ${hits.join(", ")}`);
       if (risk === "low" || (risk === "medium" && r.level !== "medium") || (risk === "high" && r.level === "critical")) risk = r.level;

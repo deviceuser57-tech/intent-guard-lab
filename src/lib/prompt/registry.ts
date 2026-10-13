@@ -9,17 +9,24 @@ interface State { assets: PromptAsset[]; audit: AuditEntry[] }
 const KEY = "pew.registry.v1";
 const TRANSITIONS: Record<Lifecycle, Lifecycle[]> = { draft: ["review"], review: ["draft", "published"], published: ["deprecated"], deprecated: [] };
 
+// In-memory cache: parse localStorage once, then serve reads from memory.
+let cache: State | null = null;
+let index = new Map<string, PromptAsset>();
+const reindex = (s: State) => { index = new Map(s.assets.map((a) => [a.id, a])); };
+const snapshot = (s: State): State => ({ assets: [...s.assets], audit: [...s.audit] });
 const load = (): State => {
   if (typeof window === "undefined") return { assets: [], audit: [] };
-  try { return JSON.parse(localStorage.getItem(KEY) || "") as State; } catch { return { assets: [], audit: [] }; }
+  if (!cache) {
+    try { cache = JSON.parse(localStorage.getItem(KEY) || "") as State; } catch { cache = { assets: [], audit: [] }; }
+    cache.assets ??= []; cache.audit ??= []; reindex(cache);
+  }
+  return cache;
 };
-let saveTimeout: NodeJS.Timeout | null = null;
-const debouncedSave = (s: State) => {
-  if (saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(() => localStorage.setItem(KEY, JSON.stringify(s)), 300);
-};
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+const flush = () => { if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null; } if (cache) localStorage.setItem(KEY, JSON.stringify(cache)); };
+const save = (_s: State) => { if (saveTimeout) clearTimeout(saveTimeout); saveTimeout = setTimeout(flush, 300); };
+if (typeof window !== "undefined") { window.addEventListener("beforeunload", flush); document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); }); }
 const uid = () => Math.random().toString(36).slice(2, 10);
-const save = (s: State) => localStorage.setItem(KEY, JSON.stringify(s));
 
 function log(s: State, assetId: string, action: string, detail: string) {
   s.audit.push(Object.freeze({ id: uid(), at: new Date().toISOString(), assetId, action, detail }));
@@ -40,31 +47,33 @@ export function diffLines(a: string, b: string) {
 }
 
 export const registry = {
-  read: load,
+  read: () => snapshot(load()),
+  get: (id: string) => { load(); return index.get(id); },
   canTransition: (from: Lifecycle, to: Lifecycle) => TRANSITIONS[from].includes(to),
   nextStates: (from: Lifecycle) => TRANSITIONS[from],
   create(name: string, archetype: Archetype, prompt: CompiledPrompt, securityScore: number): State {
     const s = load(); const id = uid();
-    s.assets.push({ id, name, archetype, status: "draft", versions: [{ version: "1.0.0", createdAt: new Date().toISOString(), prompt, note: "Initial version", securityScore }] });
+    const asset: PromptAsset = { id, name, archetype, status: "draft", versions: [{ version: "1.0.0", createdAt: new Date().toISOString(), prompt, note: "Initial version", securityScore }] };
+    s.assets.push(asset); index.set(id, asset);
     log(s, id, "create", `${name} v1.0.0`);
-    debouncedSave(s);
-    return s;
+    save(s);
+    return snapshot(s);
   },
   addVersion(id: string, prompt: CompiledPrompt, kind: "major" | "minor" | "patch", note: string, securityScore: number): State {
-    const s = load(); const a = s.assets.find((x) => x.id === id); if (!a) return s;
+    const s = load(); const a = index.get(id); if (!a) return snapshot(s);
     if (a.status === "deprecated") throw new Error("Deprecated assets are immutable");
     const latest = a.versions[a.versions.length - 1]!.version; const v = bump(latest, kind);
     a.versions.push({ version: v, createdAt: new Date().toISOString(), prompt, note, securityScore });
-    a.status = "draft"; log(s, id, "version", `${latest} → ${v}: ${note}`); save(s); return s;
+    a.status = "draft"; log(s, id, "version", `${latest} → ${v}: ${note}`); save(s); return snapshot(s);
   },
   transition(id: string, to: Lifecycle): State {
-    const s = load(); const a = s.assets.find((x) => x.id === id); if (!a) return s;
+    const s = load(); const a = index.get(id); if (!a) return snapshot(s);
     if (!TRANSITIONS[a.status].includes(to)) throw new Error(`Invalid transition ${a.status} → ${to}`);
     const latest = a.versions[a.versions.length - 1]!;
     if (to === "published" && latest.securityScore < 60) throw new Error("Security score below 60 — publishing blocked");
     log(s, id, "transition", `${a.status} → ${to}`);
     a.status = to;
-    debouncedSave(s);
-    return s;
+    save(s);
+    return snapshot(s);
   },
 };
