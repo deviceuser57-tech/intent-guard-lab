@@ -19,6 +19,7 @@ const debouncedSave = (s: State) => {
   saveTimeout = setTimeout(() => localStorage.setItem(KEY, JSON.stringify(s)), 300);
 };
 const uid = () => Math.random().toString(36).slice(2, 10);
+const save = (s: State) => localStorage.setItem(KEY, JSON.stringify(s));
 
 function log(s: State, assetId: string, action: string, detail: string) {
   s.audit.push(Object.freeze({ id: uid(), at: new Date().toISOString(), assetId, action, detail }));

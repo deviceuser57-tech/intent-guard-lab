@@ -184,7 +184,7 @@ function IntentPanel({ a, t }: { a: IntentAnalysis; t: (k: string) => string }) 
 }
 
 function SpecPanel({ spec, setSpec, t }: { spec: Specification; setSpec: (s: Specification) => void; t: (k: string) => string }) {
-  const up = useCallback(<K extends keyof Specification>(k: K, v: Specification[K]) => setSpec(prev => ({ ...prev, [k]: v })), []);
+  const up = useCallback(<K extends keyof Specification>(k: K, v: Specification[K]) => setSpec({ ...spec, [k]: v }), [spec, setSpec]);
   const L = ({ children }: { children: ReactNode }) => <label className="mb-1 block text-xs text-muted-foreground">{children}</label>;
   return (
     <div className="grid gap-4 md:grid-cols-2">
