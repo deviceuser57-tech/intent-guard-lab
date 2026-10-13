@@ -53,7 +53,7 @@ function Card({ title, children, right }: { title?: string; children: ReactNode;
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{title}</h3>
           {right}
-        <\/div>
+        </div>
       )}
       {children}
     </section>
