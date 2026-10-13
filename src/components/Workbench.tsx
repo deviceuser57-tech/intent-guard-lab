@@ -186,7 +186,7 @@ const IntentPanel = memo(function IntentPanel({ a, t }: { a: IntentAnalysis; t: 
       </div>
     </div>
   );
-}
+});
 
 const SpecPanel = memo(function SpecPanel({ spec, setSpec, t }: { spec: Specification; setSpec: (s: Specification) => void; t: (k: string) => string }) {
   const up = useCallback(<K extends keyof Specification>(k: K, v: Specification[K]) => setSpec({ ...spec, [k]: v }), [spec, setSpec]);
@@ -236,7 +236,7 @@ const SpecPanel = memo(function SpecPanel({ spec, setSpec, t }: { spec: Specific
       </div>
     </div>
   );
-}
+});
 
 const CompiledPanel = memo(function CompiledPanel({ c, t }: { c: NonNullable<ReturnType<typeof compile>>; t: (k: string) => string }) {
   const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "raw">("split");
@@ -267,7 +267,7 @@ const CompiledPanel = memo(function CompiledPanel({ c, t }: { c: NonNullable<Ret
       )}
     </div>
   );
-}
+});
 
 const SecurityPanel = memo(function SecurityPanel({ report, evalR, t }: { report: ReturnType<typeof redTeam>; evalR: ReturnType<typeof evaluate>; t: (k: string) => string }) {
   return (
@@ -298,7 +298,7 @@ const SecurityPanel = memo(function SecurityPanel({ report, evalR, t }: { report
       </div>
     </div>
   );
-}
+});
 
 function RegistryPanel({ t, compiled, score, archetype }: { t: (k: string) => string; compiled: ReturnType<typeof compile> | null; score: number; archetype: Archetype }) {
   const [assets, setAssets] = useState<PromptAsset[]>([]);
