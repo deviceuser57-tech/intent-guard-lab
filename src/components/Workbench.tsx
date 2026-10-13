@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from "react";
 import { analyzeIntent } from "@/lib/prompt/intentAnalyzer";
 import { compile, defaultSpec, DEFAULT_ADV } from "@/lib/prompt/compiler";
 import { redTeam } from "@/lib/prompt/redTeam";
@@ -83,16 +83,21 @@ export function Workbench() {
 
   useEffect(() => { document.documentElement.lang = lang; document.documentElement.dir = lang === "ar" ? "rtl" : "ltr"; }, [lang]);
 
-  const base = useMemo(() => (spec && analysis ? compile(spec, analysis) : null), [spec, analysis]);
+  // Debounce spec edits (300 ms) so compile / red-team / evaluation don't run on every keystroke.
+  const [dSpec, setDSpec] = useState<Specification | null>(null);
+  const pending = spec !== dSpec;
+  useEffect(() => { if (!spec || !dSpec) { setDSpec(spec); return; } const h = setTimeout(() => setDSpec(spec), 300); return () => clearTimeout(h); }, [spec]); // eslint-disable-line react-hooks/exhaustive-deps
+  const base = useMemo(() => (dSpec && analysis ? compile(dSpec, analysis) : null), [dSpec, analysis]);
   const compiled = useMemo(() => (base && aiOv ? { ...base, system: aiOv.system, user: aiOv.user } : base), [base, aiOv]);
   const report = useMemo(() => (compiled ? redTeam(compiled) : null), [compiled]);
-  const evalR = useMemo(() => (compiled && spec && analysis ? evaluate(compiled, spec, analysis) : null), [compiled, spec, analysis]);
+  const evalR = useMemo(() => (compiled && dSpec && analysis ? evaluate(compiled, dSpec!, analysis) : null), [compiled, dSpec, analysis]);
 
-  const run = () => {
+  const run = useCallback(() => {
     if (!input.trim()) return;
     const a = analyzeIntent(input, override || null);
-    setAiOv(null); setAnalysis(a); setSpec(defaultSpec(input, a)); setTab(mode === "quick" ? "compiled" : "intent");
-  };
+    const sp = defaultSpec(input, a);
+    setAiOv(null); setAnalysis(a); setSpec(sp); setDSpec(sp); setTab(mode === "quick" ? "compiled" : "intent");
+  }, [input, override, mode]);
 
   const tabs: Tab[] = mode === "quick" ? ["compiled", "security", "playground"] : mode === "expert" ? ["intent", "spec", "compiled", "security", "playground"] : ["intent", "spec", "compiled", "security", "playground", "registry"];
   useEffect(() => { if (!tabs.includes(tab)) setTab("compiled"); }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -161,7 +166,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg border bg-card p-3"><div className="truncate text-xs text-muted-foreground">{label}</div><div className="font-mono text-xl font-semibold">{value}</div></div>;
 }
 
-function IntentPanel({ a, t }: { a: IntentAnalysis; t: (k: string) => string }) {
+const IntentPanel = memo(function IntentPanel({ a, t }: { a: IntentAnalysis; t: (k: string) => string }) {
   const Row = ({ k, v }: { k: string; v: ReactNode }) => <div className="flex justify-between gap-4 border-b py-2 text-sm last:border-0"><span className="text-muted-foreground">{k}</span><span className="text-end">{v}</span></div>;
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -183,7 +188,7 @@ function IntentPanel({ a, t }: { a: IntentAnalysis; t: (k: string) => string }) 
   );
 }
 
-function SpecPanel({ spec, setSpec, t }: { spec: Specification; setSpec: (s: Specification) => void; t: (k: string) => string }) {
+const SpecPanel = memo(function SpecPanel({ spec, setSpec, t }: { spec: Specification; setSpec: (s: Specification) => void; t: (k: string) => string }) {
   const up = useCallback(<K extends keyof Specification>(k: K, v: Specification[K]) => setSpec({ ...spec, [k]: v }), [spec, setSpec]);
   const L = ({ children }: { children: ReactNode }) => <label className="mb-1 block text-xs text-muted-foreground">{children}</label>;
   return (
@@ -233,7 +238,7 @@ function SpecPanel({ spec, setSpec, t }: { spec: Specification; setSpec: (s: Spe
   );
 }
 
-function CompiledPanel({ c, t }: { c: NonNullable<ReturnType<typeof compile>>; t: (k: string) => string }) {
+const CompiledPanel = memo(function CompiledPanel({ c, t }: { c: NonNullable<ReturnType<typeof compile>>; t: (k: string) => string }) {
   const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "raw">("split");
   const oa = toOpenAI(c), an = toAnthropic(c);
   const v = prov === "openai" ? validateOpenAI(oa) : prov === "anthropic" ? validateAnthropic(an) : null;
@@ -264,7 +269,7 @@ function CompiledPanel({ c, t }: { c: NonNullable<ReturnType<typeof compile>>; t
   );
 }
 
-function SecurityPanel({ report, evalR, t }: { report: ReturnType<typeof redTeam>; evalR: ReturnType<typeof evaluate>; t: (k: string) => string }) {
+const SecurityPanel = memo(function SecurityPanel({ report, evalR, t }: { report: ReturnType<typeof redTeam>; evalR: ReturnType<typeof evaluate>; t: (k: string) => string }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Card title={`${t("securityScore")} · ${report.score}/100`}>
