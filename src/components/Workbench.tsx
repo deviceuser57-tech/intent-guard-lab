@@ -10,9 +10,11 @@ import { makeT, type Lang } from "@/lib/i18n";
 import { useServerFn } from "@tanstack/react-start";
 import { gsap } from "gsap";
 import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
+import { GuardrailConsole } from "@/components/GuardrailConsole";
 
 const L2: Record<string, { en: string; ar: string }> = {
   tabPlayground: { en: "Live Playground", ar: "ساحة الاختبار الحية" },
+  guardrails: { en: "IntentGuard Console", ar: "لوحة مراقبة IntentGuard" },
   aiOpt: { en: "AI Optimizer · Auto-Revise", ar: "المحسّن الذكي · مراجعة تلقائية" },
   aiDesc: { en: "A live AI model rewrites the prompt using current best practices, fixes security findings and tailors it to the target model.", ar: "يعيد نموذج ذكاء اصطناعي كتابة الموجّه وفق أحدث الممارسات ويعالج الملاحظات الأمنية ويكيّفه للنموذج المستهدف." },
   target: { en: "Target model", ar: "النموذج المستهدف" },
@@ -42,7 +44,7 @@ const L2: Record<string, { en: string; ar: string }> = {
 
 const ARCHS: Archetype[] = ["software", "business", "copywriting", "analytics", "agents", "research", "creative", "general"];
 const ALL_COMPONENTS: Component[] = ["role", "context", "task", "constraints", "output_contract", "examples", "reasoning", "safety", "variables", "citations", "tools", "evaluation_rubric"];
-type Tab = "intent" | "spec" | "compiled" | "security" | "playground" | "registry";
+type Tab = "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails";
 
 const riskTone: Record<"low" | "medium" | "high" | "critical", string> = { low: "bg-success/15 text-success", medium: "bg-warning/15 text-warning", high: "bg-destructive/15 text-destructive", critical: "bg-destructive text-destructive-foreground" };
 
@@ -99,9 +101,9 @@ export function Workbench() {
     setAiOv(null); setAnalysis(a); setSpec(sp); setDSpec(sp); setTab(mode === "quick" ? "compiled" : "intent");
   }, [input, override, mode]);
 
-  const tabs: Tab[] = mode === "quick" ? ["compiled", "security", "playground"] : mode === "expert" ? ["intent", "spec", "compiled", "security", "playground"] : ["intent", "spec", "compiled", "security", "playground", "registry"];
+  const tabs: Tab[] = mode === "quick" ? ["compiled", "security", "playground", "guardrails"] : mode === "expert" ? ["intent", "spec", "compiled", "security", "playground", "guardrails"] : ["intent", "spec", "compiled", "security", "playground", "registry", "guardrails"];
   useEffect(() => { if (!tabs.includes(tab)) setTab("compiled"); }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tabLabel: Record<Tab, string> = { intent: "tabIntent", spec: "tabSpec", compiled: "tabCompiled", security: "tabSecurity", playground: "tabPlayground", registry: "tabRegistry" };
+  const tabLabel: Record<Tab, string> = { intent: "tabIntent", spec: "tabSpec", compiled: "tabCompiled", security: "tabSecurity", playground: "tabPlayground", registry: "tabRegistry", guardrails: "guardrails" };
 
   return (
     <div ref={containerRef} className="min-h-screen bg-background text-foreground">
@@ -150,6 +152,7 @@ export function Workbench() {
             ))}
           </nav>
           {tab === "registry" ? <RegistryPanel t={t} compiled={compiled} score={report?.score ?? 0} archetype={analysis?.archetype ?? "general"} /> :
+            tab === "guardrails" ? <GuardrailConsole input={input} risk={analysis?.risk} findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []} evaluationScore={evalR?.overall} systemPrompt={compiled?.system} userPrompt={compiled?.user} /> :
             !analysis || !spec || !compiled || !report || !evalR ? <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">{t("emptyState")}</div> :
             tab === "intent" ? <IntentPanel a={analysis} t={t} /> :
             tab === "spec" ? <SpecPanel spec={spec} setSpec={setSpec} t={t} /> :
