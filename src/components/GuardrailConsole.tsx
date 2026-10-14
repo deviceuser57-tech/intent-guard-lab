@@ -20,15 +20,62 @@ const levelLabel: Record<LogLevel, string> = { info: "Info", "high-risk": "High 
 function downloadFile(name: string, contents: string, type: string) {
   const blob = new Blob([contents], { type });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function csvCell(value: string) { return '"' + value.replace(/"/g, '""') + '"'; }
+function csvCell(value: string) {
+  // Neutralize spreadsheet formula injection while preserving CSV quoting.
+  const safe = /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
+  return '"' + safe.replace(/"/g, '""') + '"';
+}
+function validatePolicy(policy: unknown): policy is Policy {
+  if (!policy || typeof policy !== "object") return false;
+  const candidate = policy as Partial<Policy>;
+  if (typeof candidate.id !== "string" || !candidate.id.trim()) return false;
+  if (typeof candidate.name !== "string" || !candidate.name.trim()) return false;
+  if (candidate.mode !== "json" && candidate.mode !== "natural") return false;
+  if (typeof candidate.content !== "string" || !candidate.content.trim()) return false;
+  return typeof candidate.enabled === "boolean";
+}
+function validatePolicyContent(mode: "natural" | "json", content: string): string | null {
+  if (!content.trim()) return "Policy content is required.";
+  if (mode === "natural") {
+    return content.trim().length < 12 ? "Describe the policy in at least 12 characters." : null;
+  }
+  let parsed: unknown;
+  try { parsed = JSON.parse(content); } catch (error) { return (error as Error).message; }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "JSON root must be an object.";
+  const doc = parsed as { name?: unknown; rules?: unknown };
+  if (doc.name !== undefined && typeof doc.name !== "string") return 'Optional "name" must be a string.';
+  if (!Array.isArray(doc.rules) || doc.rules.length === 0) return 'Policy JSON must contain a non-empty "rules" array.';
+  const ids = new Set<string>();
+  for (let i = 0; i < doc.rules.length; i++) {
+    const rule = doc.rules[i];
+    if (!rule || typeof rule !== "object" || Array.isArray(rule)) return `Rule ${i + 1} must be an object.`;
+    const item = rule as { id?: unknown; description?: unknown; term?: unknown; pattern?: unknown; action?: unknown };
+    if (typeof item.id !== "string" || !item.id.trim()) return `Rule ${i + 1} needs a non-empty string "id".`;
+    if (ids.has(item.id)) return `Duplicate rule id: ${item.id}.`;
+    ids.add(item.id);
+    if (![item.description, item.term, item.pattern].some((v) => typeof v === "string" && v.trim())) return `Rule "${item.id}" needs a description, term, or pattern.`;
+    if (!["block", "review", "allow", "log"].includes(String(item.action))) return `Rule "${item.id}" action must be block, review, allow, or log.`;
+  }
+  return null;
+}
 function scoreOutput(value: string, policyText: string) {
   const text = value.toLowerCase();
-  const terms = Array.from(policyText.matchAll(/"(?:description|term|pattern)"\s*:\s*"([^"]+)"/g)).map((m) => m[1] ?? "").filter(Boolean);
+  let terms: string[] = [];
+  try {
+    const parsed = JSON.parse(policyText) as { rules?: Array<{ description?: unknown; term?: unknown; pattern?: unknown }> };
+    terms = (parsed.rules ?? []).flatMap((rule) => [rule.description, rule.term, rule.pattern].filter((v): v is string => typeof v === "string" && Boolean(v.trim())));
+  } catch {
+    // Natural-language policy is not machine-enforceable by this phrase matcher.
+  }
   const matched = terms.filter((term) => text.includes(term.toLowerCase()));
   const score = Math.max(0, Math.min(100, 70 + Math.min(20, Math.floor(value.length / 120)) - matched.length * 25 - (value.trim() ? 0 : 70)));
-  return { score, matched, verdict: matched.length ? "Review required: configured policy phrase matched." : value.trim() ? "No configured phrase matched; not a safety certification." : "No output provided." };
+  return { score, matched, verdict: matched.length ? "Review required: configured phrase matched." : value.trim() ? "No exact configured phrase matched; this is not policy enforcement or a safety certification." : "No output provided." };
 }
 function initialLogs(): AuditLog[] {
   return [
@@ -53,6 +100,8 @@ export function GuardrailConsole({ input, risk, findings, evaluationScore, syste
   const [policyMode, setPolicyMode] = useState<"natural" | "json">("json");
   const [policyText, setPolicyText] = useState(defaultPolicy);
   const [policyError, setPolicyError] = useState("");
+  const [policyImportStatus, setPolicyImportStatus] = useState("");
+  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
   const [driftThreshold, setDriftThreshold] = useState(20);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [alertStatus, setAlertStatus] = useState("");
@@ -68,7 +117,10 @@ export function GuardrailConsole({ input, risk, findings, evaluationScore, syste
     queryKey: ["intentguard", "policies"],
     queryFn: async () => {
       if (typeof window === "undefined") return [];
-      try { return JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as Policy[]; } catch { return []; }
+      try {
+        const value: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]");
+        return Array.isArray(value) ? value.filter(validatePolicy) : [];
+      } catch { return []; }
     },
     staleTime: 30000,
   });
@@ -98,7 +150,12 @@ export function GuardrailConsole({ input, risk, findings, evaluationScore, syste
     if (!streamUrl.trim()) { setStreamState("Disconnected"); return; }
     let source: EventSource | undefined;
     try {
-      source = new EventSource(streamUrl);
+      const parsedUrl = new URL(streamUrl);
+      if (!["http:", "https:"].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password) {
+        setStreamState("Invalid SSE URL: use HTTP(S) without embedded credentials");
+        return;
+      }
+      source = new EventSource(parsedUrl.toString());
       source.onopen = () => setStreamState("Connected to SSE");
       source.onerror = () => setStreamState("SSE connection error / reconnecting");
       source.onmessage = (event) => {
@@ -116,22 +173,81 @@ export function GuardrailConsole({ input, risk, findings, evaluationScore, syste
     setLogs((current) => [{ id: crypto.randomUUID(), time: new Date().toISOString(), level: eventLevel, message, source }, ...current].slice(0, 500));
   };
   const saveCurrentPolicy = () => {
-    if (!policyName.trim() || !policyText.trim()) { setPolicyError("Policy name and content are required."); return; }
-    if (policyMode === "json") {
-      try { const parsed = JSON.parse(policyText); if (!parsed || typeof parsed !== "object") throw new Error("JSON root must be an object."); }
-      catch (e) { setPolicyError((e as Error).message); return; }
-    }
+    if (!policyName.trim()) { setPolicyError("Policy name is required."); return; }
+    const validationError = validatePolicyContent(policyMode, policyText);
+    if (validationError) { setPolicyError(validationError); return; }
     setPolicyError("");
-    const id = "policy-" + policyName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const id = editingPolicyId ?? ("policy-" + policyName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"));
     savePolicy.mutate({ id, name: policyName.trim(), mode: policyMode, content: policyText, enabled: true });
-    addLog("info", 'Policy "' + policyName.trim() + '" saved locally.');
+    setEditingPolicyId(id);
+    addLog("info", 'Policy "' + policyName.trim() + '" saved locally; backend enforcement is not enabled.');
+  };
+  const startEditingPolicy = (policy: Policy) => {
+    setEditingPolicyId(policy.id);
+    setPolicyName(policy.name);
+    setPolicyMode(policy.mode);
+    setPolicyText(policy.content);
+    setPolicyError("");
+    setPolicyImportStatus("");
+  };
+  const resetPolicyEditor = () => {
+    setEditingPolicyId(null);
+    setPolicyName("Protect sensitive data");
+    setPolicyMode("json");
+    setPolicyText(defaultPolicy);
+    setPolicyError("");
+    setPolicyImportStatus("");
+  };
+  const deletePolicy = (policy: Policy) => {
+    const next = savedPolicies.filter((item) => item.id !== policy.id);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      queryClient.setQueryData<Policy[]>(["intentguard", "policies"], next);
+      if (editingPolicyId === policy.id) resetPolicyEditor();
+      addLog("info", 'Policy "' + policy.name + '" deleted from this browser.');
+    } catch (error) {
+      setPolicyError("Could not update local policy storage: " + (error as Error).message);
+    }
+  };
+  const exportPolicies = () => downloadFile("intentguard-policies.json", JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), policies: savedPolicies }, null, 2), "application/json");
+  const importPolicies = async (file?: File) => {
+    if (!file) return;
+    setPolicyImportStatus("");
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      const entries = Array.isArray(parsed) ? parsed : parsed && typeof parsed === "object" && "policies" in parsed ? (parsed as { policies?: unknown }).policies : [parsed];
+      if (!Array.isArray(entries) || entries.length === 0) throw new Error("Expected a policy object, an array, or an export with a policies array.");
+      const normalized: Policy[] = [];
+      for (const entry of entries) {
+        if (!validatePolicy(entry)) throw new Error("Each imported policy must include id, name, mode, content, and enabled.");
+        const error = validatePolicyContent(entry.mode, entry.content);
+        if (error) throw new Error(entry.name + ": " + error);
+        normalized.push(entry);
+      }
+      const merged = [...savedPolicies.filter((old) => !normalized.some((item) => item.id === old.id)), ...normalized];
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      queryClient.setQueryData<Policy[]>(["intentguard", "policies"], merged);
+      setPolicyImportStatus(`Imported ${normalized.length} validated policy/policies.`);
+      addLog("info", `Imported ${normalized.length} policy/policies from a file.`);
+    } catch (error) {
+      setPolicyImportStatus("Import rejected: " + (error as Error).message);
+    }
   };
   const sendAlert = async () => {
     setAlertStatus("");
     if (!webhookUrl.trim()) { setAlertStatus("Enter a webhook URL first. No alert was sent."); return; }
-    if (driftRate < driftThreshold) { setAlertStatus("Current estimated drift (" + driftRate + "%) is below threshold (" + driftThreshold + "%)."); return; }
+    let target: URL;
     try {
-      const response = await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "intent_drift_threshold_exceeded", driftRate, threshold: driftThreshold, createdAt: new Date().toISOString(), source: "IntentGuard Console" }) });
+      target = new URL(webhookUrl);
+      if (!["https:", "http:"].includes(target.protocol) || target.username || target.password) throw new Error("Use an HTTP(S) URL without embedded credentials.");
+    } catch (error) {
+      setAlertStatus("Invalid webhook URL: " + (error as Error).message);
+      return;
+    }
+    if (driftRate < driftThreshold) { setAlertStatus("Current estimated drift (" + driftRate + "%) is below threshold (" + driftThreshold + "%)."); return; }
+    if (!window.confirm("Send a test alert containing only the estimated drift percentage and threshold to " + target.origin + "?")) return;
+    try {
+      const response = await fetch(target.toString(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "intent_drift_threshold_exceeded", driftRate, threshold: driftThreshold, createdAt: new Date().toISOString(), source: "IntentGuard Console" }) });
       if (!response.ok) throw new Error("Webhook returned HTTP " + response.status);
       setAlertStatus("Webhook accepted the test alert.");
       addLog("high-risk", "Webhook alert sent at estimated drift " + driftRate + "%.");
@@ -185,16 +301,24 @@ export function GuardrailConsole({ input, risk, findings, evaluationScore, syste
     </section>
     <div className="grid gap-4 xl:grid-cols-2">
       <section className="rounded-lg border bg-card p-4"><h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Custom policy editor</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Policies are browser-local configuration drafts. Saving or enabling them does not enforce them on the AI backend.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={exportPolicies} className="rounded border px-3 py-2 text-xs hover:bg-accent">Export policies</button>
+          <label className="cursor-pointer rounded border px-3 py-2 text-xs hover:bg-accent">Import policies<input type="file" accept="application/json,.json" className="sr-only" onChange={(e) => { void importPolicies(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
+          {editingPolicyId && <button type="button" onClick={resetPolicyEditor} className="rounded border px-3 py-2 text-xs hover:bg-accent">New policy / cancel edit</button>}
+        </div>
+        {policyImportStatus && <p role="status" className="mt-2 text-xs text-muted-foreground">{policyImportStatus}</p>}
         <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_180px]"><input value={policyName} onChange={(e) => setPolicyName(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm" aria-label="Policy name" /><select value={policyMode} onChange={(e) => setPolicyMode(e.target.value as typeof policyMode)} className="rounded-md border bg-background px-3 py-2 text-sm"><option value="json">JSON policy</option><option value="natural">Natural language</option></select></div>
-        <textarea rows={8} value={policyText} onChange={(e) => setPolicyText(e.target.value)} className="mt-2 w-full rounded-md border bg-background p-3 font-mono text-xs" placeholder={policyMode === "natural" ? "Describe safety boundaries in plain language…" : "Enter a JSON policy object…"} />
-        {policyError && <p className="mt-2 text-sm text-destructive">{policyError}</p>}<button onClick={saveCurrentPolicy} className="mt-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Validate & save policy</button>
-        <div className="mt-3 space-y-2">{savedPolicies.map((policy) => <div key={policy.id} className="flex items-center justify-between gap-2 rounded border p-2 text-sm"><span>{policy.name}<span className="ms-2 text-xs text-muted-foreground">{policy.mode} · {policy.enabled ? "enabled" : "disabled"}</span></span><button className="text-xs underline" onClick={() => savePolicy.mutate({ ...policy, enabled: !policy.enabled })}>{policy.enabled ? "Disable" : "Enable"}</button></div>)}</div>
+        <textarea rows={8} value={policyText} onChange={(e) => setPolicyText(e.target.value)} className="mt-2 w-full rounded-md border bg-background p-3 font-mono text-xs" placeholder={policyMode === "natural" ? "Describe safety boundaries in plain language…" : "Enter a JSON policy object…"} aria-label="Policy content" />
+        {policyError && <p role="alert" className="mt-2 text-sm text-destructive">{policyError}</p>}
+        <button onClick={saveCurrentPolicy} className="mt-2 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">{editingPolicyId ? "Validate & update policy" : "Validate & save policy"}</button>
+        <div className="mt-3 space-y-2">{savedPolicies.map((policy) => <div key={policy.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-sm"><span>{policy.name}<span className="ms-2 text-xs text-muted-foreground">{policy.mode} · {policy.enabled ? "enabled" : "disabled"}</span></span><div className="flex gap-3"><button className="text-xs underline" onClick={() => startEditingPolicy(policy)}>Edit</button><button className="text-xs underline" onClick={() => savePolicy.mutate({ ...policy, enabled: !policy.enabled })}>{policy.enabled ? "Disable" : "Enable"}</button><button className="text-xs text-destructive underline" onClick={() => deletePolicy(policy)}>Delete</button></div></div>)}</div>
         {activePolicies.length > 0 && <p className="mt-2 text-xs text-muted-foreground">{activePolicies.length} active policies saved in this browser. Backend enforcement is not configured by this UI alone.</p>}
       </section>
       <section className="rounded-lg border bg-card p-4"><h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Intent drift alert</h3>
         <div className="mt-3 flex items-center justify-between"><label className="text-sm">Alert threshold <b>{driftThreshold}%</b></label><input type="range" min={5} max={80} step={5} value={driftThreshold} onChange={(e) => setDriftThreshold(Number(e.target.value))} /></div>
         <div className="mt-3 rounded-md bg-muted p-3"><div className="text-xs text-muted-foreground">Estimated drift from current workbench risk/findings, not historical telemetry</div><div className="mt-1 text-2xl font-semibold">{driftRate}%</div><div className="mt-1 text-xs">{driftRate >= driftThreshold ? "Threshold crossed" : "Below threshold"}</div></div>
-        <label className="mt-3 block text-xs text-muted-foreground">Webhook endpoint (optional; not saved)<input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://your-service.example/webhook" className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" /></label>
+        <label className="mt-3 block text-xs text-muted-foreground">Webhook endpoint (optional; not saved)<input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://your-service.example/webhook" className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" /></label>
         <button onClick={sendAlert} className="mt-3 rounded-md border px-3 py-2 text-sm hover:bg-accent">Send test alert if threshold crossed</button>{alertStatus && <p className="mt-2 text-sm">{alertStatus}</p>}
         <p className="mt-2 text-xs text-muted-foreground">Slack/email delivery requires a trusted server-side adapter. Never place tokens in browser code.</p>
       </section>
