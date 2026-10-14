@@ -43,8 +43,7 @@ export function GuardrailConsole({ input, risk, findings, evaluationScore, syste
 }) {
   const queryClient = useQueryClient();
   const runAI = useServerFn(runPrompt);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  useEffect(() => { setLogs(initialLogs()); }, []);
+  const [logs, setLogs] = useState<AuditLog[]>(initialLogs);
   const [search, setSearch] = useState("");
   const [level, setLevel] = useState<"all" | LogLevel>("all");
   const [streamUrl, setStreamUrl] = useState("");
