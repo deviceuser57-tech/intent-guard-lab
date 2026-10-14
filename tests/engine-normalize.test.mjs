@@ -13,5 +13,5 @@ test("normalizes common Arabic alef variants for keyword matching", () => {
   assert.equal(normalize("على"), normalize("علي"));
 });
 test("preserves digits and letters from mixed-language input", () => {
-  assert.equal(normalize("Model v2: إصدار ٣"), "model v2 إصدار ٣");
+  assert.equal(normalize("Model v2: إصدار ٣"), "model v2 اصدار ٣");
 });
