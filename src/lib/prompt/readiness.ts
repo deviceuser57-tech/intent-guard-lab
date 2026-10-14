@@ -366,7 +366,7 @@ export function assessReadiness(
     overallState,
     dimensions,
     releaseGate,
-    blockingReasons: blockingReasons.length > 0 ? blockingReasons : undefined,
+    ...(blockingReasons.length > 0 ? { blockingReasons } : {}),
     assessedAt: new Date().toISOString(),
   };
 }

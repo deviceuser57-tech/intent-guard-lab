@@ -11,6 +11,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { gsap } from "gsap";
 import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
 import { GuardrailConsole } from "@/components/GuardrailConsole";
+import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
 
 const L2: Record<string, { en: string; ar: string }> = {
   tabPlayground: { en: "Live Playground", ar: "ساحة الاختبار الحية" },
@@ -92,6 +93,7 @@ export function Workbench() {
   const compiled = useMemo(() => (base && aiOv ? { ...base, system: aiOv.system, user: aiOv.user } : base), [base, aiOv]);
   const report = useMemo(() => (compiled ? redTeam(compiled) : null), [compiled]);
   const evalR = useMemo(() => (compiled && dSpec && analysis ? evaluate(compiled, dSpec!, analysis) : null), [compiled, dSpec, analysis]);
+  const governance = useMemo(() => (dSpec ? buildPromptIR(dSpec.goal || input, dSpec, lang === "ar" ? "ar" : "en") : null), [dSpec, input, lang]);
 
   const run = useCallback(() => {
     if (!input.trim()) return;
@@ -151,15 +153,97 @@ export function Workbench() {
             ))}
           </nav>
           {tab === "registry" ? <RegistryPanel t={t} compiled={compiled} score={report?.score ?? 0} archetype={analysis?.archetype ?? "general"} /> :
-            tab === "guardrails" ? <GuardrailConsole input={input} risk={analysis?.risk} findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []} evaluationScore={evalR?.overall} systemPrompt={compiled?.system} userPrompt={compiled?.user} /> :
+            tab === "guardrails" ? <GuardrailConsole
+              input={input}
+              findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []}
+              {...(analysis ? { risk: analysis.risk } : {})}
+              {...(evalR ? { evaluationScore: evalR.overall } : {})}
+              {...(compiled ? { systemPrompt: compiled.system, userPrompt: compiled.user } : {})}
+            /> :
             !analysis || !spec || !compiled || !report || !evalR ? <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">{t("emptyState")}</div> :
             tab === "intent" ? <IntentPanel a={analysis} t={t} /> :
             tab === "spec" ? <SpecPanel spec={spec} setSpec={setSpec} t={t} /> :
-            tab === "compiled" ? <div className="space-y-4"><AiOptimizer c={compiled} findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)} ov={aiOv} setOv={setAiOv} t={t} /><CompiledPanel c={compiled} t={t} /></div> :
+            tab === "compiled" ? <div className="space-y-4">{governance && <GovernancePanels result={governance} lang={lang} />}<AiOptimizer c={compiled} findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)} ov={aiOv} setOv={setAiOv} t={t} /><CompiledPanel c={compiled} t={t} /></div> :
             tab === "playground" ? <Playground c={compiled} t={t} /> :
             <SecurityPanel report={report} evalR={evalR} t={t} />}
         </div>
       </main>
+    </div>
+  );
+}
+
+
+function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang }) {
+  const ar = lang === "ar";
+  const { findings, readiness } = result;
+  const gate = readiness.releaseGate;
+  const gateStyle = gate === "ready"
+    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    : gate === "blocked"
+      ? "border-destructive/40 bg-destructive/10 text-destructive"
+      : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  const gateLabel = gate === "ready" ? "READY" : gate === "blocked" ? "BLOCKED" : "NEEDS_REVIEW";
+  const categoryLabel: Record<string, string> = {
+    structural: ar ? "البنية" : "Structure",
+    semantic: ar ? "الإسناد والمعنى" : "Grounding",
+    security: ar ? "الأمان" : "Security",
+    operational: ar ? "التنسيق والتشغيل" : "Formatting / Operations",
+  };
+  const severityStyle: Record<string, string> = {
+    critical: "bg-destructive text-destructive-foreground",
+    high: "bg-destructive/15 text-destructive",
+    medium: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+    low: "bg-secondary text-secondary-foreground",
+    info: "bg-muted text-muted-foreground",
+  };
+  return (
+    <div className="space-y-4">
+      <Card title={ar ? "فحص الموجّه والسياسات" : "Prompt Linter & Policy Findings"}
+        right={<span className="rounded bg-secondary px-2 py-1 text-xs">{findings.length} {ar ? "ملاحظة" : "findings"}</span>}>
+        {findings.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{ar ? "لم يرصد الفاحص أي ملاحظات من القواعد الحالية." : "No findings were raised by the current rules."}</p>
+        ) : (
+          <div className="space-y-2">
+            {findings.map((finding) => (
+              <div key={finding.id} className="rounded-md border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-secondary px-2 py-0.5 text-xs">{categoryLabel[finding.category] ?? finding.category}</span>
+                  <span className={`rounded px-2 py-0.5 text-[10px] uppercase ${severityStyle[finding.severity] ?? severityStyle.info}`}>{finding.severity}</span>
+                  <span className="text-xs text-muted-foreground">{finding.status.toUpperCase()}</span>
+                </div>
+                <p className="mt-2 text-sm">{finding.message}</p>
+                {finding.affectedComponent && <p className="mt-1 text-xs text-muted-foreground">{ar ? "المكوّن" : "Component"}: <code>{finding.affectedComponent}</code></p>}
+                {finding.suggestedCorrection && <p className="mt-1 text-sm"><span className="font-medium">{ar ? "الإصلاح المقترح:" : "Suggested fix:"}</span> {finding.suggestedCorrection}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <Card title={ar ? "جاهزية الإصدار" : "Production Readiness Release Gate"}
+        right={<span className={`rounded-md border px-3 py-1.5 font-mono text-xs font-bold tracking-wide ${gateStyle}`}>{gateLabel}</span>}>
+        <p className="mb-3 text-sm text-muted-foreground">{ar ? "تقييم قواعد ثابتة؛ لا يعني أن اختبارات التنفيذ أو Red Team قد شُغّلت." : "Rule-based assessment only; this does not mean execution tests or red-team runs have been performed."}</p>
+        <div className="space-y-3">
+          {readiness.dimensions.map((dimension) => (
+            <div key={dimension.name}>
+              <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                <span>{dimension.name}</span>
+                <span className="font-mono text-xs">{dimension.value === undefined ? (ar ? "غير مقاس" : "Not scored") : `${Math.round(dimension.value)}/100`} · {dimension.status}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded bg-muted">
+                <div className="h-full rounded bg-primary" style={{ width: `${Math.max(0, Math.min(100, dimension.value ?? 0))}%` }} />
+              </div>
+              {dimension.evidence.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{dimension.evidence.slice(0, 2).join(" · ")}</p>}
+            </div>
+          ))}
+        </div>
+        {(readiness.blockingReasons?.length ?? 0) > 0 && (
+          <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+            <h4 className="mb-1 text-sm font-semibold">{ar ? "أسباب المنع أو المراجعة" : "Blockers / review reasons"}</h4>
+            <ul className="list-disc space-y-1 ps-5 text-sm">{readiness.blockingReasons!.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-muted-foreground">{ar ? "حالة التقييم:" : "Assessment state:"} <code>{readiness.overallState}</code> · {ar ? "آخر تقييم:" : "Assessed at:"} {new Date(readiness.assessedAt).toLocaleString()}</p>
+      </Card>
     </div>
   );
 }

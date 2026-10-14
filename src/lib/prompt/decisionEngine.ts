@@ -19,7 +19,7 @@ import type {
   EvidenceScore,
 } from "./specification";
 import { createEvidenceScore } from "./specification";
-import { normalize } from "../engine";
+import { normalize } from "../engine.mjs";
 
 /* ============================================================================
  * INTENT ANALYSIS
@@ -202,10 +202,10 @@ export function decideComponents(intent: IntentAnalysis): PromptComponentDecisio
       component,
       status,
       reason,
-      evidence,
-      dependencies,
+      ...(evidence !== undefined ? { evidence } : {}),
+      ...(dependencies !== undefined ? { dependencies } : {}),
       source,
-      trace,
+      ...(trace !== undefined ? { trace } : {}),
     };
   };
   
