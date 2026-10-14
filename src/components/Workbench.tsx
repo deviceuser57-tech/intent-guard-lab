@@ -151,7 +151,13 @@ export function Workbench() {
             ))}
           </nav>
           {tab === "registry" ? <RegistryPanel t={t} compiled={compiled} score={report?.score ?? 0} archetype={analysis?.archetype ?? "general"} /> :
-            tab === "guardrails" ? <GuardrailConsole input={input} risk={analysis?.risk} findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []} evaluationScore={evalR?.overall} systemPrompt={compiled?.system} userPrompt={compiled?.user} /> :
+            tab === "guardrails" ? <GuardrailConsole
+              input={input}
+              findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []}
+              {...(analysis ? { risk: analysis.risk } : {})}
+              {...(evalR ? { evaluationScore: evalR.overall } : {})}
+              {...(compiled ? { systemPrompt: compiled.system, userPrompt: compiled.user } : {})}
+            /> :
             !analysis || !spec || !compiled || !report || !evalR ? <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">{t("emptyState")}</div> :
             tab === "intent" ? <IntentPanel a={analysis} t={t} /> :
             tab === "spec" ? <SpecPanel spec={spec} setSpec={setSpec} t={t} /> :

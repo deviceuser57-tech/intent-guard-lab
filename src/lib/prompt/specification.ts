@@ -32,11 +32,11 @@ export function createEvidenceScore(
   evidence: EvidenceItem[] = []
 ): EvidenceScore {
   return {
-    value,
+    ...(value !== undefined ? { value } : {}),
     status,
     basis,
     evidence,
-    measuredAt: status === "measured" || status === "inferred" ? Date.now() : undefined,
+    ...(status === "measured" || status === "inferred" ? { measuredAt: Date.now() } : {}),
   };
 }
 

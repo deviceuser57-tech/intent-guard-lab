@@ -29,8 +29,8 @@ function makeFinding(
     severity,
     category,
     message,
-    affectedComponent,
-    suggestedCorrection,
+    ...(affectedComponent !== undefined ? { affectedComponent } : {}),
+    ...(suggestedCorrection !== undefined ? { suggestedCorrection } : {}),
   };
 }
 
