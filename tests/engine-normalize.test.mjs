@@ -8,6 +8,10 @@ test("normalizes case, punctuation, and repeated whitespace", () => {
 test("preserves Arabic words and removes vowel marks/tatweel", () => {
   assert.equal(normalize("اَلْعَرَبِيَّةُ ـ اختبار"), "العربية اختبار");
 });
+test("normalizes common Arabic alef variants for keyword matching", () => {
+  assert.equal(normalize("أنشئ"), normalize("انشئ"));
+  assert.equal(normalize("على"), normalize("علي"));
+});
 test("preserves digits and letters from mixed-language input", () => {
   assert.equal(normalize("Model v2: إصدار ٣"), "model v2 إصدار ٣");
 });
