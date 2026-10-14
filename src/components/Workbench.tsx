@@ -14,6 +14,7 @@ import { GuardrailConsole } from "@/components/GuardrailConsole";
 
 const L2: Record<string, { en: string; ar: string }> = {
   tabPlayground: { en: "Live Playground", ar: "ساحة الاختبار الحية" },
+  guardrails: { en: "IntentGuard Console", ar: "لوحة مراقبة IntentGuard" },
   aiOpt: { en: "AI Optimizer · Auto-Revise", ar: "المحسّن الذكي · مراجعة تلقائية" },
   aiDesc: { en: "A live AI model rewrites the prompt using current best practices, fixes security findings and tailors it to the target model.", ar: "يعيد نموذج ذكاء اصطناعي كتابة الموجّه وفق أحدث الممارسات ويعالج الملاحظات الأمنية ويكيّفه للنموذج المستهدف." },
   target: { en: "Target model", ar: "النموذج المستهدف" },
