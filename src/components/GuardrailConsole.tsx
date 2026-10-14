@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { csvCell, scoreOutput, validatePolicy, validatePolicyContent, type Policy } from "@/lib/guardrail-policy.mjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { runPrompt } from "@/lib/ai.functions";
 import { useServerFn } from "@tanstack/react-start";
 
 type LogLevel = "info" | "high-risk" | "intent-drift" | "policy-violation";
 type AuditLog = { id: string; time: string; level: LogLevel; message: string; source: string };
-type Policy = { id: string; name: string; mode: "natural" | "json"; content: string; enabled: boolean };
 const STORAGE_KEY = "intentguard.custom-policies.v1";
 const defaultPolicy = [
   "{",
@@ -25,57 +25,6 @@ function downloadFile(name: string, contents: string, type: string) {
   a.download = name;
   a.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-function csvCell(value: string) {
-  // Neutralize spreadsheet formula injection while preserving CSV quoting.
-  const safe = /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
-  return '"' + safe.replace(/"/g, '""') + '"';
-}
-function validatePolicy(policy: unknown): policy is Policy {
-  if (!policy || typeof policy !== "object") return false;
-  const candidate = policy as Partial<Policy>;
-  if (typeof candidate.id !== "string" || !candidate.id.trim()) return false;
-  if (typeof candidate.name !== "string" || !candidate.name.trim()) return false;
-  if (candidate.mode !== "json" && candidate.mode !== "natural") return false;
-  if (typeof candidate.content !== "string" || !candidate.content.trim()) return false;
-  return typeof candidate.enabled === "boolean";
-}
-function validatePolicyContent(mode: "natural" | "json", content: string): string | null {
-  if (!content.trim()) return "Policy content is required.";
-  if (mode === "natural") {
-    return content.trim().length < 12 ? "Describe the policy in at least 12 characters." : null;
-  }
-  let parsed: unknown;
-  try { parsed = JSON.parse(content); } catch (error) { return (error as Error).message; }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "JSON root must be an object.";
-  const doc = parsed as { name?: unknown; rules?: unknown };
-  if (doc.name !== undefined && typeof doc.name !== "string") return 'Optional "name" must be a string.';
-  if (!Array.isArray(doc.rules) || doc.rules.length === 0) return 'Policy JSON must contain a non-empty "rules" array.';
-  const ids = new Set<string>();
-  for (let i = 0; i < doc.rules.length; i++) {
-    const rule = doc.rules[i];
-    if (!rule || typeof rule !== "object" || Array.isArray(rule)) return `Rule ${i + 1} must be an object.`;
-    const item = rule as { id?: unknown; description?: unknown; term?: unknown; pattern?: unknown; action?: unknown };
-    if (typeof item.id !== "string" || !item.id.trim()) return `Rule ${i + 1} needs a non-empty string "id".`;
-    if (ids.has(item.id)) return `Duplicate rule id: ${item.id}.`;
-    ids.add(item.id);
-    if (![item.description, item.term, item.pattern].some((v) => typeof v === "string" && v.trim())) return `Rule "${item.id}" needs a description, term, or pattern.`;
-    if (!["block", "review", "allow", "log"].includes(String(item.action))) return `Rule "${item.id}" action must be block, review, allow, or log.`;
-  }
-  return null;
-}
-function scoreOutput(value: string, policyText: string) {
-  const text = value.toLowerCase();
-  let terms: string[] = [];
-  try {
-    const parsed = JSON.parse(policyText) as { rules?: Array<{ description?: unknown; term?: unknown; pattern?: unknown }> };
-    terms = (parsed.rules ?? []).flatMap((rule) => [rule.description, rule.term, rule.pattern].filter((v): v is string => typeof v === "string" && Boolean(v.trim())));
-  } catch {
-    // Natural-language policy is not machine-enforceable by this phrase matcher.
-  }
-  const matched = terms.filter((term) => text.includes(term.toLowerCase()));
-  const score = Math.max(0, Math.min(100, 70 + Math.min(20, Math.floor(value.length / 120)) - matched.length * 25 - (value.trim() ? 0 : 70)));
-  return { score, matched, verdict: matched.length ? "Review required: configured phrase matched." : value.trim() ? "No exact configured phrase matched; this is not policy enforcement or a safety certification." : "No output provided." };
 }
 function initialLogs(): AuditLog[] {
   return [
