@@ -17,11 +17,7 @@ test("rejects malformed JSON and non-object roots", () => {
   assert.match(validatePolicyContent("json", "{oops"), /JSON|position|property/i);
   assert.match(validatePolicyContent("json", "[]"), /root must be an object/i);
 });
-test("requires at least one rule", () =>
-  assert.match(
-    validatePolicyContent("json", JSON.stringify({ rules: [] })),
-    /non-empty "rules" array/i,
-  ));
+test("requires at least one rule", () => assert.match(validatePolicyContent("json", JSON.stringify({ rules: [] })), /non-empty "rules" array/i));
 test("rejects duplicate rule IDs", () => {
   const policy = {
     rules: [
