@@ -45,6 +45,16 @@ const L2: Record<string, { en: string; ar: string }> = {
   target: { en: "Target model", ar: "النموذج المستهدف" },
   optimize: { en: "Optimize with AI", ar: "حسّن بالذكاء الاصطناعي" },
   evolve: { en: "Auto-evolve (3 rounds)", ar: "تطوير تلقائي (3 جولات)" },
+  compareCandidates: {
+    en: "Compare 2 candidates (up to 6 AI requests)",
+    ar: "قارن نسختين (حتى 6 طلبات ذكاء اصطناعي)",
+  },
+  comparingCandidates: { en: "Comparing candidates…", ar: "جارٍ مقارنة النسخ…" },
+  candidateResults: { en: "Candidate comparison", ar: "مقارنة النسخ" },
+  selectedCandidate: { en: "Selected", ar: "المختارة" },
+  aiJudgeScore: { en: "AI judge", ar: "تقييم النموذج" },
+  staticScore: { en: "Static evaluation", ar: "التقييم القاعدي" },
+  redTeamScore: { en: "Red-team", ar: "الفحص الأمني" },
   revert: { en: "Revert to rule-based", ar: "العودة للنسخة القياسية" },
   working: { en: "Working…", ar: "جارٍ العمل…" },
   changes: { en: "AI changes", ar: "تغييرات الذكاء الاصطناعي" },
@@ -424,6 +434,8 @@ export function Workbench() {
                 {governance && <GovernancePanels result={governance} lang={lang} />}
                 <AiOptimizer
                   c={compiled}
+                  spec={spec}
+                  a={analysis}
                   findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)}
                   ov={aiOv}
                   setOv={setAiOv}
@@ -1288,21 +1300,43 @@ function RegistryPanel({
 
 function AiOptimizer({
   c,
+  spec,
+  a,
   findings,
   ov,
   setOv,
   t,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
+  spec: Specification;
+  a: IntentAnalysis;
   findings: string[];
   ov: { changes: string[] } | null;
   setOv: (v: { system: string; user: string; changes: string[] } | null) => void;
   t: (k: string) => string;
 }) {
   const opt = useServerFn(optimizePrompt);
+  const run = useServerFn(runPrompt);
+  const judge = useServerFn(judgeOutput);
   const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning">("openai");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
+  const [candidateResults, setCandidateResults] = useState<
+    Array<{
+      index: number;
+      judgeScore: number;
+      verdict: string;
+      issues: string[];
+      securityScore: number;
+      highRiskFindings: number;
+      evaluationScore: number;
+      tokens: number;
+      changes: string[];
+      system: string;
+      user: string;
+      selected: boolean;
+    }>
+  >([]);
   const go = async (rounds: number) => {
     setErr("");
     let cur = { system: c.system, user: c.user };
@@ -1323,6 +1357,112 @@ function AiOptimizer({
       setErr((e as Error).message);
     }
     setBusy("");
+  };
+  const compare = async () => {
+    setErr("");
+    setCandidateResults([]);
+    const completed: Array<{
+      index: number;
+      judgeScore: number;
+      verdict: string;
+      issues: string[];
+      securityScore: number;
+      highRiskFindings: number;
+      evaluationScore: number;
+      tokens: number;
+      changes: string[];
+      system: string;
+      user: string;
+      selected: boolean;
+    }> = [];
+    const failures: string[] = [];
+    const base = { system: c.system, user: c.user };
+
+    try {
+      for (let index = 1; index <= 2; index++) {
+        setBusy(`${t("comparingCandidates")} ${index}/2`);
+        const optimized = await opt({ data: { ...base, findings, target } });
+        if (!optimized.ok) {
+          failures.push(optimized.error);
+          continue;
+        }
+
+        const candidatePrompt = {
+          ...c,
+          system: optimized.system,
+          user: optimized.user,
+        };
+        const execution = await run({
+          data: { system: candidatePrompt.system, user: candidatePrompt.user },
+        });
+        if (!execution.ok) {
+          failures.push(execution.error);
+          continue;
+        }
+
+        const judgement = await judge({
+          data: {
+            system: candidatePrompt.system,
+            user: candidatePrompt.user,
+            output: execution.text,
+          },
+        });
+        if (!judgement.ok) {
+          failures.push(judgement.error);
+          continue;
+        }
+
+        const security = redTeam(candidatePrompt);
+        const staticEvaluation = evaluate(candidatePrompt, spec, a);
+        completed.push({
+          index,
+          judgeScore: judgement.score,
+          verdict: judgement.verdict,
+          issues: judgement.issues,
+          securityScore: security.score,
+          highRiskFindings: security.findings.filter(
+            (finding) => finding.severity === "critical" || finding.severity === "high",
+          ).length,
+          evaluationScore: staticEvaluation.overall,
+          tokens: staticEvaluation.tokens.total,
+          changes: optimized.changes,
+          system: candidatePrompt.system,
+          user: candidatePrompt.user,
+          selected: false,
+        });
+      }
+
+      if (completed.length === 0) {
+        setErr(failures.join(" · ") || "No candidate completed evaluation.");
+        return;
+      }
+
+      completed.sort(
+        (left, right) =>
+          left.highRiskFindings - right.highRiskFindings ||
+          right.judgeScore - left.judgeScore ||
+          right.securityScore - left.securityScore ||
+          right.evaluationScore - left.evaluationScore ||
+          left.tokens - right.tokens,
+      );
+      const best = completed[0]!;
+      setCandidateResults(completed.map((candidate, index) => ({ ...candidate, selected: index === 0 })));
+      setOv({
+        system: best.system,
+        user: best.user,
+        changes: [
+          ...best.changes,
+          `Selected candidate ${best.index}: AI judge ${best.judgeScore}/100, red-team ${best.securityScore}/100, static score ${best.evaluationScore}/100.`,
+        ],
+      });
+      if (failures.length > 0) {
+        setErr(`Some candidates could not be evaluated: ${failures.join(" · ")}`);
+      }
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy("");
+    }
   };
   return (
     <Card
@@ -1364,9 +1504,52 @@ function AiOptimizer({
         >
           {t("evolve")}
         </button>
+        <button
+          disabled={!!busy}
+          onClick={compare}
+          className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-40"
+        >
+          {t("compareCandidates")}
+        </button>
         {busy && <span className="text-xs text-muted-foreground">{busy}</span>}
       </div>
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {candidateResults.length > 0 && (
+        <div className="mt-3 space-y-2 rounded-md border p-3">
+          <h4 className="text-sm font-semibold">{t("candidateResults")}</h4>
+          <p className="text-xs text-muted-foreground">
+            {t("aiJudgeScore")} is a model judgment, not independent ground truth. Candidates are ranked
+            by high-severity findings first, then judge score, security score, static score, and token use.
+          </p>
+          {candidateResults.map((candidate) => (
+            <div key={candidate.index} className="rounded-md border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium">
+                  Candidate {candidate.index}
+                  {candidate.selected && (
+                    <span className="ms-2 rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      {t("selectedCandidate")}
+                    </span>
+                  )}
+                </span>
+                <span className="font-mono text-xs">
+                  {t("aiJudgeScore")}: {candidate.judgeScore}/100 · {t("redTeamScore")}:{" "}
+                  {candidate.securityScore}/100 · {t("staticScore")}: {candidate.evaluationScore}/100 ·{" "}
+                  {candidate.tokens} tokens
+                </span>
+              </div>
+              <p className="mt-1 text-sm">{candidate.verdict}</p>
+              {candidate.issues.length > 0 && (
+                <ul className="mt-1 list-disc ps-5 text-xs text-muted-foreground">
+                  {candidate.issues.map((issue, index) => (
+                    <li key={index}>{issue}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {ov && ov.changes.length > 0 && (
         <div className="mt-3">
           <h4 className="mb-1 text-xs text-muted-foreground">{t("changes")}</h4>
