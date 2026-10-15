@@ -8,7 +8,7 @@
     "build": "npx vite build",
     "build:dev": "npx vite build --mode development",
     "preview": "npx vite preview",
-    "lint": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\" && eslint .",
+    "lint": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\" \"tests/**/*.mjs\" && eslint .",
     "test": "node --test tests/*.test.mjs",
     "format": "prettier --write ."
   },
@@ -26,6 +26,7 @@
     "@radix-ui/react-context-menu": "^2.2.16",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-form": "^0.0.3",
     "@radix-ui/react-hover-card": "^1.1.15",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-menubar": "^1.1.16",
