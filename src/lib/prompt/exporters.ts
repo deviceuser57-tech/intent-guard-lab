@@ -1,6 +1,6 @@
 import type { CompiledPrompt } from "./types";
 
-export type Provider = "openai" | "anthropic" | "raw";
+export type Provider = "openai" | "anthropic" | "gemini" | "raw";
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -25,6 +25,39 @@ export function toAnthropic(p: CompiledPrompt, model = "claude-sonnet-4-5") {
 }
 export const toRaw = (p: CompiledPrompt) =>
   `=== SYSTEM ===\n${p.system}\n\n=== USER ===\n${p.user}`;
+
+export function toGemini(p: CompiledPrompt, model = "gemini-2.5-pro") {
+  return {
+    endpoint: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    body: {
+      systemInstruction: { parts: [{ text: p.system }] },
+      contents: [{ role: "user" as const, parts: [{ text: p.user }] }],
+    },
+  };
+}
+
+export function validateGemini(x: ReturnType<typeof toGemini>): ValidationResult {
+  const errors: string[] = [];
+  if (!x.endpoint.includes("/v1beta/models/") || !x.endpoint.endsWith(":generateContent")) {
+    errors.push("endpoint must target a Gemini generateContent model");
+  }
+  if (!x.body.systemInstruction.parts.some((part) => part.text.trim())) {
+    errors.push("systemInstruction must contain non-empty text");
+  }
+  if (!Array.isArray(x.body.contents) || x.body.contents.length === 0) {
+    errors.push("contents must be a non-empty array");
+  }
+  if (x.body.contents[x.body.contents.length - 1]?.role !== "user") {
+    errors.push("last content item should have role=user");
+  }
+  x.body.contents.forEach((content, index) => {
+    if (!content.parts.length || content.parts.some((part) => typeof part.text !== "string")) {
+      errors.push(`contents[${index}].parts must contain text parts`);
+    }
+  });
+  return { valid: errors.length === 0, errors };
+}
+
 
 export function validateOpenAI(x: ReturnType<typeof toOpenAI>): ValidationResult {
   const e: string[] = [];
