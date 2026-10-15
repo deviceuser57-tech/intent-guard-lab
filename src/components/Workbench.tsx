@@ -30,6 +30,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { gsap } from "gsap";
 import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
 import { GuardrailConsole } from "@/components/GuardrailConsole";
+import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, FileCode2, Globe2 } from "lucide-react";
@@ -99,7 +100,7 @@ const ALL_COMPONENTS: Component[] = [
   "tools",
   "evaluation_rubric",
 ];
-type Tab = "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails";
+type Tab = "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails" | "help";
 
 const riskTone: Record<"low" | "medium" | "high" | "critical", string> = {
   low: "bg-success/15 text-success",
@@ -262,6 +263,7 @@ export function Workbench() {
     "playground",
     "registry",
     "guardrails",
+    "help",
   ];
   useEffect(() => {
     if (!tabs.includes(tab)) setTab("compiled");
@@ -274,6 +276,7 @@ export function Workbench() {
     playground: "Playground",
     registry: "Prompt Registry",
     guardrails: "Guardrails",
+    help: "Help & User Guide",
   };
 
   return (
@@ -380,7 +383,9 @@ export function Workbench() {
             ))}
           </nav>
           <div className={`workbench-content workbench-content-${tab} py-6`}>
-          {tab === "registry" ? (
+          {tab === "help" ? (
+            <HelpUserGuide lang={lang} />
+          ) : tab === "registry" ? (
             <RegistryPanel
               t={t}
               compiled={compiled}
