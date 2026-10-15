@@ -22,9 +22,7 @@ export function validatePolicy(policy) {
 export function validatePolicyContent(mode, content) {
   if (typeof content !== "string" || !content.trim()) return "Policy content is required.";
   if (mode === "natural")
-    return content.trim().length < 12
-      ? "Describe the policy in at least 12 characters."
-      : null;
+    return content.trim().length < 12 ? "Describe the policy in at least 12 characters." : null;
   if (mode !== "json") return "Unsupported policy mode.";
   let parsed;
   try {
@@ -49,11 +47,7 @@ export function validatePolicyContent(mode, content) {
       return `Rule ${i + 1} needs a non-empty string "id".`;
     if (ids.has(item.id)) return `Duplicate rule id: ${item.id}.`;
     ids.add(item.id);
-    if (
-      ![item.description, item.term, item.pattern].some(
-        (v) => typeof v === "string" && v.trim(),
-      )
-    )
+    if (![item.description, item.term, item.pattern].some((v) => typeof v === "string" && v.trim()))
       return `Rule "${item.id}" needs a description, term, or pattern.`;
     if (!["block", "review", "allow", "log"].includes(String(item.action)))
       return `Rule "${item.id}" action must be block, review, allow, or log.`;
