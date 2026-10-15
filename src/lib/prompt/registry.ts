@@ -156,7 +156,6 @@ export function searchPublishedAssets(
     .slice(0, Math.min(10, Math.floor(limit)));
 }
 
-
 const load = (): State => {
   if (typeof window === "undefined") {
     return cache ?? emptyState();
