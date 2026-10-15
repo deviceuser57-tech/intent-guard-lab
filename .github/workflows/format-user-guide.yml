@@ -1,4 +1,4 @@
-name: Format Help & User Guide changes retry
+name: Format Help & User Guide changes retry again
 
 on:
   push:
@@ -30,5 +30,6 @@ jobs:
             echo "Formatting is already clean."
           else
             git commit -m "Format Help & User Guide UI"
+            git pull --rebase origin main
             git push
           fi
