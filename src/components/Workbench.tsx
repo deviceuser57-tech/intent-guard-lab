@@ -3,6 +3,7 @@ import { analyzeIntent } from "@/lib/prompt/intentAnalyzer";
 import { compile, defaultSpec, DEFAULT_ADV } from "@/lib/prompt/compiler";
 import { redTeam } from "@/lib/prompt/redTeam";
 import { evaluate } from "@/lib/prompt/evaluation";
+import { rankCandidates } from "@/lib/prompt/optimization";
 import {
   registry,
   diffLines,
@@ -1437,16 +1438,11 @@ function AiOptimizer({
         return;
       }
 
-      completed.sort(
-        (left, right) =>
-          left.highRiskFindings - right.highRiskFindings ||
-          right.judgeScore - left.judgeScore ||
-          right.securityScore - left.securityScore ||
-          right.evaluationScore - left.evaluationScore ||
-          left.tokens - right.tokens,
+      const ranked = rankCandidates(completed);
+      const best = ranked[0]!;
+      setCandidateResults(
+        ranked.map((candidate, index) => ({ ...candidate, selected: index === 0 })),
       );
-      const best = completed[0]!;
-      setCandidateResults(completed.map((candidate, index) => ({ ...candidate, selected: index === 0 })));
       setOv({
         system: best.system,
         user: best.user,
