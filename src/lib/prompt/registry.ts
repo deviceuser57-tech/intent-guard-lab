@@ -105,12 +105,18 @@ export function searchPublishedAssets(
   limit = 3,
 ): PublishedPromptExample[] {
   const queryTerms = Array.from(
-    new Set(normalize(query).split(" ").filter((term) => term.length >= 3 && !SEARCH_STOPWORDS.has(term))),
+    new Set(
+      normalize(query)
+        .split(" ")
+        .filter((term) => term.length >= 3 && !SEARCH_STOPWORDS.has(term)),
+    ),
   );
   if (queryTerms.length === 0 || limit <= 0) return [];
 
   return assets
-    .filter((asset) => asset.status === "published" && (!archetype || asset.archetype === archetype))
+    .filter(
+      (asset) => asset.status === "published" && (!archetype || asset.archetype === archetype),
+    )
     .flatMap((asset) => {
       const latest = asset.versions[asset.versions.length - 1];
       if (!latest) return [];
