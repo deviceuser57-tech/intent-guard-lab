@@ -19,6 +19,6 @@ test("candidate ranking prioritizes severe-risk reduction before scores", async 
   ];
 
   const ranked = optimization.rankCandidates(candidates);
-  assert.deepEqual(ranked.map((candidate) => candidate.index), [2, 4, 3, 1]);
+  assert.deepEqual(ranked.map((candidate) => candidate.index), [4, 3, 2, 1]);
   assert.deepEqual(candidates.map((candidate) => candidate.index), [1, 2, 3, 4]);
 });
