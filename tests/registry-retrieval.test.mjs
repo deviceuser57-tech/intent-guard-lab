@@ -31,7 +31,7 @@ test("registry retrieval returns relevant published examples only", async () => 
     }],
   });
   const assets = [
-    asset("published-1", "Vessel maintenance analysis", "published", "research", "Analyze vessel maintenance records and flag overdue inspections.", 90),
+    asset("published-1", "Vessel maintenance analysis", "published", "research", "Analyze vessel maintenance records and flag overdue inspection.", 90),
     asset("published-2", "Vessel safety checklist", "published", "research", "Review vessel safety records and identify missing checks.", 80),
     asset("draft-1", "Vessel maintenance draft", "draft", "research", "Analyze vessel maintenance records.", 99),
     asset("other-1", "Vessel maintenance software", "published", "software", "Write vessel maintenance code.", 95),
@@ -41,8 +41,5 @@ test("registry retrieval returns relevant published examples only", async () => 
   assert.deepEqual(results.map((result) => result.assetId), ["published-1"]);
   assert.equal(results[0].version, "1.0.0");
   assert.equal(results[0].relevance, 1);
-  assert.deepEqual(results[0].matchedTerms, ["vessel", "maintenance", "inspection"].filter((term) =>
-    ["vessel", "maintenance", "inspection"].includes(term) &&
-    ["vessel", "maintenance", "inspection"].includes(term),
-  ));
+  assert.deepEqual(results[0].matchedTerms, ["vessel", "maintenance", "inspection"]);
 });
