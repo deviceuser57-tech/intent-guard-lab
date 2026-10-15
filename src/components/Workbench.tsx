@@ -58,6 +58,14 @@ const L2: Record<string, { en: string; ar: string }> = {
   aiJudgeScore: { en: "AI judge", ar: "تقييم النموذج" },
   staticScore: { en: "Static evaluation", ar: "التقييم القاعدي" },
   redTeamScore: { en: "Red-team", ar: "الفحص الأمني" },
+  analyzerAuditDescription: {
+    en: "Diagnostic comparison of both analyzers. Differences are shown for review rather than silently merged.",
+    ar: "مقارنة تشخيصية بين المحللين. تُعرض الاختلافات للمراجعة بدلًا من دمجها دون إظهارها.",
+  },
+  candidateRankingNote: {
+    en: "AI judge scores are model judgments, not independent ground truth. Ranking prioritizes fewer high-severity findings, then judge score, static security, static evaluation, and token use.",
+    ar: "درجات المحكّم تقديرات نموذجية وليست حقيقة مستقلة. تُرتّب النسخ أولًا حسب تقليل الملاحظات عالية الخطورة، ثم تقييم النموذج والأمان والتقييم القاعدي وعدد الرموز.",
+  },
   retrievedExamples: { en: "Published examples retrieved", ar: "أمثلة منشورة مسترجعة" },
   noRegistryExamples: {
     en: "No published examples matched this task; optimization continued without retrieval.",
@@ -506,11 +514,7 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
           </span>
         }
       >
-        <p className="mb-3 text-sm text-muted-foreground">
-          {ar
-            ? "مقارنة تشخيصية بين المحلل القديم ومحرك القرار. الاختلافات ظاهرة للمراجعة ولا يتم إخفاؤها أو دمجها تلقائيًا."
-            : "Diagnostic comparison of the legacy analyzer and decision engine. Differences are surfaced for review, not silently merged."}
-        </p>
+        <p className="mb-3 text-sm text-muted-foreground">{t("analyzerAuditDescription")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-md border p-3">
             <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
@@ -1564,10 +1568,7 @@ function AiOptimizer({
       {candidateResults.length > 0 && (
         <div className="mt-3 space-y-2 rounded-md border p-3">
           <h4 className="text-sm font-semibold">{t("candidateResults")}</h4>
-          <p className="text-xs text-muted-foreground">
-            {t("aiJudgeScore")} is a model judgment, not independent ground truth. Candidates are ranked
-            by high-severity findings first, then judge score, security score, static score, and token use.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("candidateRankingNote")}</p>
           {candidateResults.map((candidate) => (
             <div key={candidate.index} className="rounded-md border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
