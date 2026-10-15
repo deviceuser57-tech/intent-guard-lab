@@ -33,6 +33,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { gsap } from "gsap";
 import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
 import { GuardrailConsole } from "@/components/GuardrailConsole";
+import { ModelSettings } from "@/components/ModelSettings";
+import { CloudStoragePanel } from "@/components/CloudStoragePanel";
+import { DEFAULT_MODEL_PROVIDER_CONFIG, safePersistedConfig, type ModelProviderConfig } from "@/lib/prompt/providerTypes";
+import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdapters";
 import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
 import { Button } from "@/components/ui/button";
@@ -49,8 +53,8 @@ const L2: Record<string, { en: string; ar: string }> = {
   optimize: { en: "Optimize with AI", ar: "حسّن بالذكاء الاصطناعي" },
   evolve: { en: "Auto-evolve (3 rounds)", ar: "تطوير تلقائي (3 جولات)" },
   compareCandidates: {
-    en: "Compare 2 candidates (up to 6 AI requests)",
-    ar: "قارن نسختين (حتى 6 طلبات ذكاء اصطناعي)",
+    en: "Iterative search: evaluate 5 candidates (up to 15 model calls)",
+    ar: "تحسين تكراري: تقييم 5 مرشحين (حتى 15 طلبًا للنموذج)",
   },
   comparingCandidates: { en: "Comparing candidates…", ar: "جارٍ مقارنة النسخ…" },
   candidateResults: { en: "Candidate comparison", ar: "مقارنة النسخ" },
@@ -127,7 +131,7 @@ const ALL_COMPONENTS: Component[] = [
   "evaluation_rubric",
 ];
 type Tab =
-  "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails" | "help";
+  | "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails" | "help" | "models";
 
 const riskTone: Record<"low" | "medium" | "high" | "critical", string> = {
   low: "bg-success/15 text-success",
@@ -227,6 +231,17 @@ export function Workbench() {
     null,
   );
   const [mode, setMode] = useState<Mode>("quick");
+  const [providerConfig, setProviderConfig] = useState<ModelProviderConfig>(() => {
+    if (typeof window === "undefined") return { ...DEFAULT_MODEL_PROVIDER_CONFIG };
+    try {
+      const saved = localStorage.getItem("intent-guard.model-settings.v1");
+      return { ...DEFAULT_MODEL_PROVIDER_CONFIG, ...(saved ? JSON.parse(saved) : {}), apiKey: "" };
+    } catch { return { ...DEFAULT_MODEL_PROVIDER_CONFIG }; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("intent-guard.model-settings.v1", JSON.stringify(safePersistedConfig(providerConfig))); }
+    catch { /* Settings metadata is optional; never persist the API key. */ }
+  }, [providerConfig.provider, providerConfig.model, providerConfig.baseUrl]);
   const [tab, setTab] = useState<Tab>("compiled");
   const [input, setInput] = useState("");
   const [override, setOverride] = useState<Archetype | "">("");
@@ -289,6 +304,7 @@ export function Workbench() {
     "registry",
     "guardrails",
     "help",
+    "models",
   ];
   useEffect(() => {
     if (!tabs.includes(tab)) setTab("compiled");
@@ -302,6 +318,7 @@ export function Workbench() {
     registry: "Prompt Registry",
     guardrails: "Guardrails",
     help: "Help & User Guide",
+    models: lang === "ar" ? "النماذج وواجهات API والتخزين السحابي" : "Models, APIs & Cloud Storage",
   };
 
   return (
@@ -419,7 +436,12 @@ export function Workbench() {
             ))}
           </nav>
           <div className={`workbench-content workbench-content-${tab} py-6`}>
-            {tab === "help" ? (
+            {tab === "models" ? (
+              <div className="space-y-4">
+                <ModelSettings config={providerConfig} onChange={setProviderConfig} lang={lang} />
+                <CloudStoragePanel lang={lang} />
+              </div>
+            ) : tab === "help" ? (
               <HelpUserGuide lang={lang} />
             ) : tab === "registry" ? (
               <RegistryPanel
@@ -456,6 +478,7 @@ export function Workbench() {
                   ov={aiOv}
                   setOv={setAiOv}
                   t={t}
+                  providerConfig={providerConfig}
                 />
                 <CompiledPanel c={compiled} t={t} />
               </div>
@@ -1326,6 +1349,7 @@ function AiOptimizer({
   ov,
   setOv,
   t,
+  providerConfig,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
   spec: Specification;
@@ -1334,11 +1358,14 @@ function AiOptimizer({
   ov: { changes: string[] } | null;
   setOv: (v: { system: string; user: string; changes: string[] } | null) => void;
   t: (k: string) => string;
+  providerConfig: ModelProviderConfig;
 }) {
   const opt = useServerFn(optimizePrompt);
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
-  const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning">("openai");
+  const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning" | "gemini" | "deepseek" | "openai-compatible">(
+    providerConfig.provider === "openai-compatible" ? "openai-compatible" : providerConfig.provider,
+  );
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [retrievedExamples, setRetrievedExamples] = useState<
@@ -1361,14 +1388,14 @@ function AiOptimizer({
       selected: boolean;
     }>
   >([]);
-  const loadExamples = () => {
+  const loadExamples = async () => {
     const examples = registry.searchPublished(spec.goal || c.user, spec.archetype, 3);
     setRetrievedExamples(examples);
     setRetrievalAttempted(true);
     return examples.map(({ name, version, system, user }) => ({ name, version, system, user }));
   };
   const go = async (rounds: number) => {
-    const examples = loadExamples();
+    const examples = await loadExamples();
     setErr("");
     let cur = { system: c.system, user: c.user };
     const all: string[] = [];
@@ -1376,7 +1403,7 @@ function AiOptimizer({
       for (let i = 0; i < rounds; i++) {
         setBusy(`${t("working")} ${rounds > 1 ? `${i + 1}/${rounds}` : ""}`);
         const r = await opt({
-          data: { ...cur, findings: i === 0 ? findings : [], examples, target },
+          data: { ...cur, findings: i === 0 ? findings : [], examples, target, providerConfig },
         });
         if (!r.ok) {
           setErr(r.error);
@@ -1410,12 +1437,14 @@ function AiOptimizer({
     }> = [];
     const failures: string[] = [];
     const base = { system: c.system, user: c.user };
-    const examples = loadExamples();
+    const examples = await loadExamples();
 
     try {
-      for (let index = 1; index <= 2; index++) {
-        setBusy(`${t("comparingCandidates")} ${index}/2`);
-        const optimized = await opt({ data: { ...base, findings, examples, target } });
+      const family = (target === "reasoning" ? (providerConfig.provider === "deepseek" ? "deepseek" : "openai") : target) as ProviderFamily;
+      const adaptedBase = adaptPromptForModel(base, { provider: family, model: providerConfig.model });
+      for (let index = 1; index <= 5; index++) {
+        setBusy(`${t("comparingCandidates")} ${index}/5`);
+        const optimized = await opt({ data: { ...adaptedBase, findings, examples, target, providerConfig } });
         if (!optimized.ok) {
           failures.push(optimized.error);
           continue;
@@ -1427,7 +1456,7 @@ function AiOptimizer({
           user: optimized.user,
         };
         const execution = await run({
-          data: { system: candidatePrompt.system, user: candidatePrompt.user },
+          data: { system: candidatePrompt.system, user: candidatePrompt.user, providerConfig },
         });
         if (!execution.ok) {
           failures.push(execution.error);
@@ -1439,6 +1468,7 @@ function AiOptimizer({
             system: candidatePrompt.system,
             user: candidatePrompt.user,
             output: execution.text,
+            providerConfig,
           },
         });
         if (!judgement.ok) {
@@ -1518,7 +1548,10 @@ function AiOptimizer({
         >
           <option value="openai">OpenAI GPT</option>
           <option value="anthropic">Anthropic Claude (XML)</option>
-          <option value="reasoning">Reasoning models</option>
+          <option value="reasoning">OpenAI o1/o3 reasoning</option>
+          <option value="deepseek">DeepSeek-R1</option>
+          <option value="gemini">Gemini</option>
+          <option value="openai-compatible">OpenAI-compatible custom</option>
         </select>
         <button
           disabled={!!busy}
