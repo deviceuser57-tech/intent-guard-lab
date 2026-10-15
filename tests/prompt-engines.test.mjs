@@ -40,7 +40,7 @@ const evaluationModule = await loadTypeScript("src/lib/prompt/evaluation.ts");
 
 test("decision engine classifies common code-generation requests", () => {
   const result = decisionEngine.analyzeIntent(
-    "Create a TypeScript function to validate email addresses and include unit tests.",
+    "Write code to implement a Python function and program that validates email addresses.",
     "en",
   );
 
