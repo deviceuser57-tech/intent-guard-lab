@@ -12,6 +12,13 @@ const providerSchema = z.object({
 
 type ProviderConfig = z.infer<typeof providerSchema>;
 type JsonSchema = { name: string; schema: object };
+type UnknownRecord = Record<string, unknown>;
+const asRecord = (value: unknown): UnknownRecord =>
+  typeof value === "object" && value !== null ? (value as UnknownRecord) : {};
+const asRecords = (value: unknown): UnknownRecord[] =>
+  Array.isArray(value) ? value.map(asRecord) : [];
+const numericVector = (value: unknown): number[] =>
+  Array.isArray(value) ? value.filter((item): item is number => typeof item === "number") : [];
 
 const safeMessage = (status: number) =>
   status === 401 || status === 403
@@ -126,18 +133,21 @@ async function callConfiguredProvider(
     const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
     if (!response.ok)
       return { ok: false, status: response.status, error: safeMessage(response.status) };
-    const result = (await response.json()) as Record<string, any>;
+    const result = asRecord(await response.json());
     const text =
       config.provider === "anthropic"
-        ? (result.content ?? [])
-            .filter((part: any) => part.type === "text")
-            .map((part: any) => part.text)
+        ? asRecords(result.content)
+            .filter((part) => part.type === "text")
+            .map((part) => (typeof part.text === "string" ? part.text : ""))
             .join("\n")
         : config.provider === "gemini"
-          ? (result.candidates?.[0]?.content?.parts ?? [])
-              .map((part: any) => part.text ?? "")
+          ? asRecords(asRecord(asRecords(result.candidates)[0]?.content).parts)
+              .map((part) => (typeof part.text === "string" ? part.text : ""))
               .join("\n")
-          : result.choices?.[0]?.message?.content;
+          : (() => {
+              const message = asRecord(asRecords(result.choices)[0]?.message);
+              return typeof message.content === "string" ? message.content : undefined;
+            })();
     if (typeof text !== "string" || !text.trim())
       return {
         ok: false,
@@ -394,8 +404,9 @@ export const embedTexts = createServerFn({ method: "POST" })
               status: response.status,
               error: safeMessage(response.status),
             };
-          const result = (await response.json()) as any;
-          vectors.push(result.embedding?.values ?? []);
+          const result = asRecord(await response.json());
+          const embedding = asRecord(result.embedding);
+          vectors.push(numericVector(embedding.values));
         }
         return { ok: true as const, vectors };
       }
@@ -415,13 +426,11 @@ export const embedTexts = createServerFn({ method: "POST" })
             status: response.status,
             error: safeMessage(response.status),
           };
-        const result = (await response.json()) as any;
-        return {
-          ok: true as const,
-          vectors: (result.data ?? [])
-            .sort((a: any, b: any) => a.index - b.index)
-            .map((item: any) => item.embedding),
-        };
+        const result = asRecord(await response.json());
+        const rows = asRecords(result.data).sort(
+          (left, right) => Number(left.index ?? 0) - Number(right.index ?? 0),
+        );
+        return { ok: true as const, vectors: rows.map((item) => numericVector(item.embedding)) };
       }
       return {
         ok: false as const,
