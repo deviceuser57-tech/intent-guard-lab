@@ -119,10 +119,12 @@ async function callConfiguredProvider(
   } else {
     url = `${base}/chat/completions`;
     headers = { ...headers, Authorization: `Bearer ${config.apiKey}` };
+    const reasoningModel =
+      config.provider === "openai" && /(^|[-_/])o[13]([-_/]|$)/i.test(config.model);
     body = {
       model: config.model,
       messages: [
-        { role: "system", content: instructions },
+        { role: reasoningModel ? "developer" : "system", content: instructions },
         { role: "user", content: input },
       ],
       ...(schema ? { response_format: { type: "json_object" } } : {}),
@@ -388,12 +390,12 @@ export const embedTexts = createServerFn({ method: "POST" })
         const vectors = [];
         for (const text of data.texts) {
           response = await fetch(
-            `${base}/models/text-embedding-004:embedContent?key=${encodeURIComponent(apiKey)}`,
+            `${base}/models/gemini-embedding-001:embedContent?key=${encodeURIComponent(apiKey)}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                model: "models/text-embedding-004",
+                model: "models/gemini-embedding-001",
                 content: { parts: [{ text }] },
               }),
             },
