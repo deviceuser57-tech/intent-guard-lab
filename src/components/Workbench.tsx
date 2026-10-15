@@ -524,7 +524,10 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
         {result.analyzerAudit.differences.length > 0 && (
           <ul className="mt-3 space-y-2">
             {result.analyzerAudit.differences.map((difference) => (
-              <li key={difference.field} className="rounded-md border border-amber-500/30 p-3 text-sm">
+              <li
+                key={difference.field}
+                className="rounded-md border border-amber-500/30 p-3 text-sm"
+              >
                 <code>{difference.field}</code>:{" "}
                 <code>{difference.legacyValue}</code>
                 {difference.normalizedLegacyValue && (
