@@ -1034,7 +1034,7 @@ const CompiledPanel = memo(function CompiledPanel({
         : prov === "gemini"
           ? validateGemini(ge)
           : null;
-  const customEndpoint = (providerConfig.baseUrl || "").replace(/\\/+$/, "");
+  const customEndpoint = (providerConfig.baseUrl || "").replace(/\/+$/, "");
   const text =
     prov === "openai"
       ? JSON.stringify(oa, null, 2)
