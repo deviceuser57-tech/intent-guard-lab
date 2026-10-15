@@ -294,6 +294,21 @@ export const registry = {
     return searchPublishedAssets(load().assets, query, archetype, limit);
   },
 
+  publishedExamples(archetype?: Archetype, limit = 9): PublishedPromptExample[] {
+    return load().assets
+      .filter((asset) => asset.status === "published" && (!archetype || asset.archetype === archetype))
+      .flatMap((asset) => {
+        const latest = asset.versions[asset.versions.length - 1];
+        return latest ? [{
+          assetId: asset.id, name: asset.name, archetype: asset.archetype,
+          version: latest.version, system: latest.prompt.system, user: latest.prompt.user,
+          securityScore: latest.securityScore, relevance: 0, matchedTerms: [],
+        }] : [];
+      })
+      .sort((left, right) => right.securityScore - left.securityScore || left.name.localeCompare(right.name))
+      .slice(0, Math.min(9, Math.max(0, Math.floor(limit))));
+  },
+
   canTransition(from: Lifecycle, to: Lifecycle): boolean {
     return TRANSITIONS[from].includes(to);
   },
