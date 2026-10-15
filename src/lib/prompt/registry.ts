@@ -195,6 +195,10 @@ const flush = (): void => {
   if (typeof window !== "undefined" && cache) {
     try {
       localStorage.setItem(KEY, JSON.stringify(cache));
+      // Notify the opt-in cloud adapter without coupling this pure registry module to network code.
+      window.dispatchEvent(
+        new CustomEvent("intent-guard:registry-changed", { detail: snapshot(cache) }),
+      );
     } catch (error) {
       // Keep the in-memory state usable if browser storage is unavailable/full.
       console.error("Unable to persist prompt registry:", error);
@@ -269,6 +273,17 @@ export const registry = {
     return snapshot(load());
   },
 
+  replaceState(next: State): State {
+    const state: State = {
+      assets: Array.isArray(next.assets) ? (next.assets as PromptAsset[]) : [],
+      audit: Array.isArray(next.audit) ? (next.audit as AuditEntry[]) : [],
+    };
+    cache = state;
+    reindex(state);
+    flush();
+    return snapshot(state);
+  },
+
   get(id: string): PromptAsset | undefined {
     load();
     return index.get(id);
@@ -276,6 +291,36 @@ export const registry = {
 
   searchPublished(query: string, archetype?: Archetype, limit = 3): PublishedPromptExample[] {
     return searchPublishedAssets(load().assets, query, archetype, limit);
+  },
+
+  publishedExamples(archetype?: Archetype, limit = 9): PublishedPromptExample[] {
+    return load()
+      .assets.filter(
+        (asset) => asset.status === "published" && (!archetype || asset.archetype === archetype),
+      )
+      .flatMap((asset) => {
+        const latest = asset.versions[asset.versions.length - 1];
+        return latest
+          ? [
+              {
+                assetId: asset.id,
+                name: asset.name,
+                archetype: asset.archetype,
+                version: latest.version,
+                system: latest.prompt.system,
+                user: latest.prompt.user,
+                securityScore: latest.securityScore,
+                relevance: 0,
+                matchedTerms: [],
+              },
+            ]
+          : [];
+      })
+      .sort(
+        (left, right) =>
+          right.securityScore - left.securityScore || left.name.localeCompare(right.name),
+      )
+      .slice(0, Math.min(9, Math.max(0, Math.floor(limit))));
   },
 
   canTransition(from: Lifecycle, to: Lifecycle): boolean {

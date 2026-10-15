@@ -31,8 +31,16 @@ import type {
 import { makeT, type Lang } from "@/lib/i18n";
 import { useServerFn } from "@tanstack/react-start";
 import { gsap } from "gsap";
-import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
+import { optimizePrompt, runPrompt, judgeOutput, embedTexts } from "@/lib/ai.functions";
 import { GuardrailConsole } from "@/components/GuardrailConsole";
+import { ModelSettings } from "@/components/ModelSettings";
+import { CloudStoragePanel } from "@/components/CloudStoragePanel";
+import {
+  DEFAULT_MODEL_PROVIDER_CONFIG,
+  safePersistedConfig,
+  type ModelProviderConfig,
+} from "@/lib/prompt/providerTypes";
+import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdapters";
 import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
 import { Button } from "@/components/ui/button";
@@ -49,8 +57,8 @@ const L2: Record<string, { en: string; ar: string }> = {
   optimize: { en: "Optimize with AI", ar: "حسّن بالذكاء الاصطناعي" },
   evolve: { en: "Auto-evolve (3 rounds)", ar: "تطوير تلقائي (3 جولات)" },
   compareCandidates: {
-    en: "Compare 2 candidates (up to 6 AI requests)",
-    ar: "قارن نسختين (حتى 6 طلبات ذكاء اصطناعي)",
+    en: "Iterative search: evaluate 5 candidates (up to 15 model calls)",
+    ar: "تحسين تكراري: تقييم 5 مرشحين (حتى 15 طلبًا للنموذج)",
   },
   comparingCandidates: { en: "Comparing candidates…", ar: "جارٍ مقارنة النسخ…" },
   candidateResults: { en: "Candidate comparison", ar: "مقارنة النسخ" },
@@ -127,7 +135,15 @@ const ALL_COMPONENTS: Component[] = [
   "evaluation_rubric",
 ];
 type Tab =
-  "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails" | "help";
+  | "intent"
+  | "spec"
+  | "compiled"
+  | "security"
+  | "playground"
+  | "registry"
+  | "guardrails"
+  | "help"
+  | "models";
 
 const riskTone: Record<"low" | "medium" | "high" | "critical", string> = {
   low: "bg-success/15 text-success",
@@ -227,6 +243,25 @@ export function Workbench() {
     null,
   );
   const [mode, setMode] = useState<Mode>("quick");
+  const [providerConfig, setProviderConfig] = useState<ModelProviderConfig>(() => {
+    if (typeof window === "undefined") return { ...DEFAULT_MODEL_PROVIDER_CONFIG };
+    try {
+      const saved = localStorage.getItem("intent-guard.model-settings.v1");
+      return { ...DEFAULT_MODEL_PROVIDER_CONFIG, ...(saved ? JSON.parse(saved) : {}), apiKey: "" };
+    } catch {
+      return { ...DEFAULT_MODEL_PROVIDER_CONFIG };
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "intent-guard.model-settings.v1",
+        JSON.stringify(safePersistedConfig(providerConfig)),
+      );
+    } catch {
+      /* Settings metadata is optional; never persist the API key. */
+    }
+  }, [providerConfig]);
   const [tab, setTab] = useState<Tab>("compiled");
   const [input, setInput] = useState("");
   const [override, setOverride] = useState<Archetype | "">("");
@@ -289,6 +324,7 @@ export function Workbench() {
     "registry",
     "guardrails",
     "help",
+    "models",
   ];
   useEffect(() => {
     if (!tabs.includes(tab)) setTab("compiled");
@@ -302,6 +338,7 @@ export function Workbench() {
     registry: "Prompt Registry",
     guardrails: "Guardrails",
     help: "Help & User Guide",
+    models: lang === "ar" ? "النماذج وواجهات API والتخزين السحابي" : "Models, APIs & Cloud Storage",
   };
 
   return (
@@ -419,7 +456,12 @@ export function Workbench() {
             ))}
           </nav>
           <div className={`workbench-content workbench-content-${tab} py-6`}>
-            {tab === "help" ? (
+            {tab === "models" ? (
+              <div className="space-y-4">
+                <ModelSettings config={providerConfig} onChange={setProviderConfig} lang={lang} />
+                <CloudStoragePanel lang={lang} />
+              </div>
+            ) : tab === "help" ? (
               <HelpUserGuide lang={lang} />
             ) : tab === "registry" ? (
               <RegistryPanel
@@ -456,12 +498,13 @@ export function Workbench() {
                   ov={aiOv}
                   setOv={setAiOv}
                   t={t}
+                  providerConfig={providerConfig}
                 />
-                <CompiledPanel c={compiled} t={t} />
+                <CompiledPanel c={compiled} t={t} providerConfig={providerConfig} />
               </div>
             ) : tab === "playground" ? (
               <div className="space-y-4">
-                <Playground c={compiled} t={t} />
+                <Playground c={compiled} t={t} providerConfig={providerConfig} />
                 {governance && <GovernancePanels result={governance} lang={lang} />}
               </div>
             ) : (
@@ -981,22 +1024,57 @@ const SpecPanel = memo(function SpecPanel({
 const CompiledPanel = memo(function CompiledPanel({
   c,
   t,
+  providerConfig,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
   t: (k: string) => string;
+  providerConfig: ModelProviderConfig;
 }) {
-  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "gemini" | "raw">("split");
-  const oa = toOpenAI(c),
-    an = toAnthropic(c),
-    ge = toGemini(c);
+  const [prov, setProv] = useState<
+    "split" | "openai" | "anthropic" | "gemini" | "deepseek" | "openai-compatible" | "raw"
+  >("split");
+  const family: ProviderFamily =
+    prov === "anthropic"
+      ? "anthropic"
+      : prov === "gemini"
+        ? "gemini"
+        : prov === "deepseek"
+          ? "deepseek"
+          : prov === "openai-compatible"
+            ? "openai-compatible"
+            : "openai";
+  const model =
+    prov === "anthropic"
+      ? providerConfig.provider === "anthropic"
+        ? providerConfig.model
+        : "claude-3-7-sonnet-latest"
+      : prov === "gemini"
+        ? providerConfig.provider === "gemini"
+          ? providerConfig.model
+          : "gemini-2.5-flash"
+        : prov === "deepseek"
+          ? providerConfig.provider === "deepseek"
+            ? providerConfig.model
+            : "deepseek-reasoner"
+          : prov === "openai-compatible"
+            ? providerConfig.model
+            : providerConfig.provider === "openai"
+              ? providerConfig.model
+              : "gpt-4.1-mini";
+  const adapted = adaptPromptForModel(c, { provider: family, model });
+  const exportPrompt = { ...c, system: adapted.system, user: adapted.user };
+  const oa = toOpenAI(exportPrompt, model),
+    an = toAnthropic(exportPrompt, model),
+    ge = toGemini(exportPrompt, model);
   const v =
-    prov === "openai"
+    prov === "openai" || prov === "deepseek" || prov === "openai-compatible"
       ? validateOpenAI(oa)
       : prov === "anthropic"
         ? validateAnthropic(an)
         : prov === "gemini"
           ? validateGemini(ge)
           : null;
+  const customEndpoint = (providerConfig.baseUrl || "").replace(/\/+$/, "");
   const text =
     prov === "openai"
       ? JSON.stringify(oa, null, 2)
@@ -1004,11 +1082,43 @@ const CompiledPanel = memo(function CompiledPanel({
         ? JSON.stringify(an, null, 2)
         : prov === "gemini"
           ? JSON.stringify(ge, null, 2)
-          : toRaw(c);
+          : prov === "deepseek"
+            ? JSON.stringify(
+                {
+                  endpoint: `${providerConfig.provider === "deepseek" && customEndpoint ? customEndpoint : "https://api.deepseek.com/v1"}/chat/completions`,
+                  method: "POST",
+                  headers: { Authorization: "Bearer <API_KEY>" },
+                  body: oa,
+                },
+                null,
+                2,
+              )
+            : prov === "openai-compatible"
+              ? JSON.stringify(
+                  {
+                    endpoint: `${customEndpoint}/chat/completions`,
+                    method: "POST",
+                    headers: { Authorization: "Bearer <API_KEY>" },
+                    body: oa,
+                  },
+                  null,
+                  2,
+                )
+              : toRaw(c);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1">
-        {(["split", "openai", "anthropic", "gemini", "raw"] as const).map((p) => (
+        {(
+          [
+            "split",
+            "openai",
+            "anthropic",
+            "gemini",
+            "deepseek",
+            "openai-compatible",
+            "raw",
+          ] as const
+        ).map((p) => (
           <button
             key={p}
             onClick={() => setProv(p)}
@@ -1330,6 +1440,7 @@ function AiOptimizer({
   ov,
   setOv,
   t,
+  providerConfig,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
   spec: Specification;
@@ -1338,11 +1449,17 @@ function AiOptimizer({
   ov: { changes: string[] } | null;
   setOv: (v: { system: string; user: string; changes: string[] } | null) => void;
   t: (k: string) => string;
+  providerConfig: ModelProviderConfig;
 }) {
   const opt = useServerFn(optimizePrompt);
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
-  const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning">("openai");
+  const embed = useServerFn(embedTexts);
+  const [target, setTarget] = useState<
+    "openai" | "anthropic" | "reasoning" | "gemini" | "deepseek" | "openai-compatible"
+  >(
+    providerConfig.provider === "openai-compatible" ? "openai-compatible" : providerConfig.provider,
+  );
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [retrievedExamples, setRetrievedExamples] = useState<
@@ -1365,22 +1482,73 @@ function AiOptimizer({
       selected: boolean;
     }>
   >([]);
-  const loadExamples = () => {
-    const examples = registry.searchPublished(spec.goal || c.user, spec.archetype, 3);
+  const loadExamples = async () => {
+    const query = spec.goal || c.user;
+    const lexical = registry.searchPublished(query, spec.archetype, 3);
+    const candidates = registry.publishedExamples(spec.archetype, 9);
+    let examples = lexical;
+    if (providerConfig.apiKey.trim() && candidates.length > 0) {
+      try {
+        const embedded = await embed({
+          data: {
+            providerConfig,
+            texts: [
+              query,
+              ...candidates.map((item) =>
+                `${item.name}\n${item.system}\n${item.user}`.slice(0, 12000),
+              ),
+            ],
+          },
+        });
+        if (embedded.ok && embedded.vectors.length === candidates.length + 1) {
+          const cosine = (left: number[], right: number[]) => {
+            const dot = left.reduce((sum, value, index) => sum + value * (right[index] ?? 0), 0);
+            const a = Math.sqrt(left.reduce((sum, value) => sum + value * value, 0));
+            const b = Math.sqrt(right.reduce((sum, value) => sum + value * value, 0));
+            return a && b ? dot / (a * b) : 0;
+          };
+          const queryVector = embedded.vectors[0]!;
+          examples = candidates
+            .map((item, index) => ({
+              ...item,
+              relevance: cosine(queryVector, embedded.vectors[index + 1]!),
+              matchedTerms: [],
+            }))
+            .sort(
+              (left, right) =>
+                right.relevance - left.relevance || right.securityScore - left.securityScore,
+            )
+            .slice(0, 3);
+        }
+      } catch {
+        // Embedding failure is non-fatal; lexical retrieval remains available.
+      }
+    }
     setRetrievedExamples(examples);
     setRetrievalAttempted(true);
     return examples.map(({ name, version, system, user }) => ({ name, version, system, user }));
   };
   const go = async (rounds: number) => {
-    const examples = loadExamples();
+    const examples = await loadExamples();
     setErr("");
-    let cur = { system: c.system, user: c.user };
+    const family = (
+      target === "reasoning"
+        ? providerConfig.provider === "deepseek"
+          ? "deepseek"
+          : "openai"
+        : target
+    ) as ProviderFamily;
+    const adapted = adaptPromptForModel(
+      { system: c.system, user: c.user },
+      { provider: family, model: providerConfig.model },
+    );
+    let cur = { system: adapted.system, user: adapted.user };
     const all: string[] = [];
     try {
       for (let i = 0; i < rounds; i++) {
         setBusy(`${t("working")} ${rounds > 1 ? `${i + 1}/${rounds}` : ""}`);
         const r = await opt({
-          data: { ...cur, findings: i === 0 ? findings : [], examples, target },
+          data: { ...cur, findings: i === 0 ? findings : [], examples, target, providerConfig },
         });
         if (!r.ok) {
           setErr(r.error);
@@ -1414,12 +1582,25 @@ function AiOptimizer({
     }> = [];
     const failures: string[] = [];
     const base = { system: c.system, user: c.user };
-    const examples = loadExamples();
+    const examples = await loadExamples();
 
     try {
-      for (let index = 1; index <= 2; index++) {
-        setBusy(`${t("comparingCandidates")} ${index}/2`);
-        const optimized = await opt({ data: { ...base, findings, examples, target } });
+      const family = (
+        target === "reasoning"
+          ? providerConfig.provider === "deepseek"
+            ? "deepseek"
+            : "openai"
+          : target
+      ) as ProviderFamily;
+      const adaptedBase = adaptPromptForModel(base, {
+        provider: family,
+        model: providerConfig.model,
+      });
+      for (let index = 1; index <= 5; index++) {
+        setBusy(`${t("comparingCandidates")} ${index}/5`);
+        const optimized = await opt({
+          data: { ...adaptedBase, findings, examples, target, providerConfig },
+        });
         if (!optimized.ok) {
           failures.push(optimized.error);
           continue;
@@ -1431,7 +1612,7 @@ function AiOptimizer({
           user: optimized.user,
         };
         const execution = await run({
-          data: { system: candidatePrompt.system, user: candidatePrompt.user },
+          data: { system: candidatePrompt.system, user: candidatePrompt.user, providerConfig },
         });
         if (!execution.ok) {
           failures.push(execution.error);
@@ -1443,6 +1624,7 @@ function AiOptimizer({
             system: candidatePrompt.system,
             user: candidatePrompt.user,
             output: execution.text,
+            providerConfig,
           },
         });
         if (!judgement.ok) {
@@ -1522,7 +1704,10 @@ function AiOptimizer({
         >
           <option value="openai">OpenAI GPT</option>
           <option value="anthropic">Anthropic Claude (XML)</option>
-          <option value="reasoning">Reasoning models</option>
+          <option value="reasoning">OpenAI o1/o3 reasoning</option>
+          <option value="deepseek">DeepSeek-R1</option>
+          <option value="gemini">Gemini</option>
+          <option value="openai-compatible">OpenAI-compatible custom</option>
         </select>
         <button
           disabled={!!busy}
@@ -1557,7 +1742,7 @@ function AiOptimizer({
               {retrievedExamples.map((example) => (
                 <li key={example.assetId}>
                   <code>{example.name}</code> · v{example.version} ·{" "}
-                  {Math.round(example.relevance * 100)}% lexical match · security{" "}
+                  {Math.round(example.relevance * 100)}% relevance · security{" "}
                   {example.securityScore}/100
                 </li>
               ))}
@@ -1618,9 +1803,11 @@ function AiOptimizer({
 function Playground({
   c,
   t,
+  providerConfig,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
   t: (k: string) => string;
+  providerConfig: ModelProviderConfig;
 }) {
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
@@ -1645,11 +1832,11 @@ function Playground({
     try {
       const system = sub(c.system),
         user = sub(c.user);
-      const r = await run({ data: { system, user } });
+      const r = await run({ data: { system, user, providerConfig } });
       if (!r.ok) setErr(r.error);
       else {
         setOut(r.text);
-        const g = await judge({ data: { system, user, output: r.text } });
+        const g = await judge({ data: { system, user, output: r.text, providerConfig } });
         if (g.ok) setJ(g);
         else setErr(g.error);
       }
