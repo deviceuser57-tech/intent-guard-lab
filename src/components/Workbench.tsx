@@ -261,7 +261,7 @@ export function Workbench() {
     } catch {
       /* Settings metadata is optional; never persist the API key. */
     }
-  }, [providerConfig.provider, providerConfig.model, providerConfig.baseUrl]);
+  }, [providerConfig]);
   const [tab, setTab] = useState<Tab>("compiled");
   const [input, setInput] = useState("");
   const [override, setOverride] = useState<Archetype | "">("");
