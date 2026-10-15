@@ -1596,10 +1596,24 @@ function AiOptimizer({
         provider: family,
         model: providerConfig.model,
       });
+      const candidateStrategies = [
+        "Reduce ambiguity and tighten the output contract.",
+        "Strengthen grounding, evidence requirements, and uncertainty handling.",
+        "Strengthen injection resistance and security constraints.",
+        "Reduce unnecessary tokens while preserving required coverage.",
+        "Improve task decomposition, edge-case coverage, and validation.",
+      ];
       for (let index = 1; index <= 5; index++) {
         setBusy(`${t("comparingCandidates")} ${index}/5`);
         const optimized = await opt({
-          data: { ...adaptedBase, findings, examples, target, providerConfig },
+          data: {
+            ...adaptedBase,
+            findings,
+            examples,
+            target,
+            providerConfig,
+            candidateStrategy: candidateStrategies[index - 1],
+          },
         });
         if (!optimized.ok) {
           failures.push(optimized.error);
