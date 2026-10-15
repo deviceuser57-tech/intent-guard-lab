@@ -27,6 +27,20 @@ function providerUrl(config: ProviderConfig): string {
     config.provider === "deepseek" ? "https://api.deepseek.com/v1" : ""
   )).replace(/\/+$/, "");
   if (!base) throw new Error("A base URL is required for a custom OpenAI-compatible provider.");
+  let parsed: URL;
+  try { parsed = new URL(base); } catch { throw new Error("Enter a valid absolute API URL."); }
+  const host = parsed.hostname.toLowerCase();
+  const ipv4 = host.match(/^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$/);
+  const privateIpv4 = !!ipv4 && (
+    Number(ipv4[1]) === 10 || Number(ipv4[1]) === 127 || Number(ipv4[1]) === 0 ||
+    (Number(ipv4[1]) === 192 && Number(ipv4[2]) === 168) ||
+    (Number(ipv4[1]) === 172 && Number(ipv4[2]) >= 16 && Number(ipv4[2]) <= 31) ||
+    (Number(ipv4[1]) === 169 && Number(ipv4[2]) === 254)
+  );
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
+      host === "localhost" || host.endsWith(".local") || host === "::1" || privateIpv4) {
+    throw new Error("For security, custom endpoints must use public HTTPS hosts; localhost and private-network addresses are blocked.");
+  }
   return base;
 }
 
@@ -40,7 +54,9 @@ async function callConfiguredProvider(
   let url = "";
   let headers: Record<string, string> = { "Content-Type": "application/json" };
   let body: Record<string, unknown>;
-  const base = providerUrl(config);
+  let base: string;
+  try { base = providerUrl(config); }
+  catch (error) { return { ok: false, status: 400, error: error instanceof Error ? error.message : "Invalid provider URL." }; }
   if (config.provider === "anthropic") {
     url = `${base}/messages`;
     headers = { ...headers, "x-api-key": config.apiKey, "anthropic-version": "2023-06-01" };
@@ -87,7 +103,7 @@ async function callResponses(
   schema?: JsonSchema,
   providerConfig?: ProviderConfig,
 ): Promise<Res> {
-  if (providerConfig) return callConfiguredProvider(providerConfig, instructions, input, schema);
+  if (providerConfig?.apiKey.trim()) return callConfiguredProvider(providerConfig, instructions, input, schema);
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) return { ok: false, status: 401, error: "AI is not configured. Add a model API key in Model Settings." };
   const body: Record<string, unknown> = {
