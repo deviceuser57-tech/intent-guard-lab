@@ -14,9 +14,11 @@ import {
 import {
   toOpenAI,
   toAnthropic,
+  toGemini,
   toRaw,
   validateOpenAI,
   validateAnthropic,
+  validateGemini,
 } from "@/lib/prompt/exporters";
 import type {
   AdvancedControls,
@@ -976,21 +978,30 @@ const CompiledPanel = memo(function CompiledPanel({
   c: NonNullable<ReturnType<typeof compile>>;
   t: (k: string) => string;
 }) {
-  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "raw">("split");
+  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "gemini" | "raw">("split");
   const oa = toOpenAI(c),
-    an = toAnthropic(c);
+    an = toAnthropic(c),
+    ge = toGemini(c);
   const v =
-    prov === "openai" ? validateOpenAI(oa) : prov === "anthropic" ? validateAnthropic(an) : null;
+    prov === "openai"
+      ? validateOpenAI(oa)
+      : prov === "anthropic"
+        ? validateAnthropic(an)
+        : prov === "gemini"
+          ? validateGemini(ge)
+          : null;
   const text =
     prov === "openai"
       ? JSON.stringify(oa, null, 2)
       : prov === "anthropic"
         ? JSON.stringify(an, null, 2)
-        : toRaw(c);
+        : prov === "gemini"
+          ? JSON.stringify(ge, null, 2)
+          : toRaw(c);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1">
-        {(["split", "openai", "anthropic", "raw"] as const).map((p) => (
+        {(["split", "openai", "anthropic", "gemini", "raw"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setProv(p)}
