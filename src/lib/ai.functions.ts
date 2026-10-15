@@ -29,7 +29,7 @@ function providerUrl(config: ProviderConfig): string {
   if (!base) throw new Error("A base URL is required for a custom OpenAI-compatible provider.");
   let parsed: URL;
   try { parsed = new URL(base); } catch { throw new Error("Enter a valid absolute API URL."); }
-  const host = parsed.hostname.toLowerCase();
+  const host = parsed.hostname.toLowerCase().replace(/^\\[|\\]$/g, "");
   const ipv4 = host.match(/^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$/);
   const privateIpv4 = !!ipv4 && (
     Number(ipv4[1]) === 10 || Number(ipv4[1]) === 127 || Number(ipv4[1]) === 0 ||
@@ -214,7 +214,7 @@ export const judgeOutput = createServerFn({ method: "POST" })
 export const embedTexts = createServerFn({ method: "POST" })
   .inputValidator(z.object({ texts: z.array(z.string().max(12000)).min(1).max(10), providerConfig: providerSchema }))
   .handler(async ({ data }) => {
-    const { provider, model, baseUrl, apiKey } = data.providerConfig;
+    const { provider, model, apiKey } = data.providerConfig;
     if (!apiKey.trim()) return { ok: false as const, status: 401, error: "API key is required for embeddings." };
     try {
       let response: Response;
