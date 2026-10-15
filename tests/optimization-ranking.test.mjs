@@ -11,7 +11,7 @@ test("candidate ranking prioritizes severe-risk reduction before scores", async 
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const optimization = await import(
-    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`,
+    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`
   );
   const candidates = [
     {
@@ -49,6 +49,12 @@ test("candidate ranking prioritizes severe-risk reduction before scores", async 
   ];
 
   const ranked = optimization.rankCandidates(candidates);
-  assert.deepEqual(ranked.map((candidate) => candidate.index), [4, 3, 2, 1]);
-  assert.deepEqual(candidates.map((candidate) => candidate.index), [1, 2, 3, 4]);
+  assert.deepEqual(
+    ranked.map((candidate) => candidate.index),
+    [4, 3, 2, 1],
+  );
+  assert.deepEqual(
+    candidates.map((candidate) => candidate.index),
+    [1, 2, 3, 4],
+  );
 });
