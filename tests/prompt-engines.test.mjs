@@ -35,6 +35,19 @@ const decisionEngine = await loadTypeScript("src/lib/prompt/decisionEngine.ts", 
     ),
 );
 const legacyAnalyzer = await loadTypeScript("src/lib/prompt/intentAnalyzer.ts");
+globalThis.__intentGuardTestLegacyAnalyzer = legacyAnalyzer;
+globalThis.__intentGuardTestDecisionEngine = decisionEngine;
+const analyzerAuditModule = await loadTypeScript("src/lib/prompt/analyzerAudit.ts", (source) =>
+  source
+    .replace(
+      "import { analyzeIntent as analyzeLegacyIntent } from \"./intentAnalyzer\";",
+      "const { analyzeIntent: analyzeLegacyIntent } = globalThis.__intentGuardTestLegacyAnalyzer;",
+    )
+    .replace(
+      "import { analyzeIntent as analyzeDecisionIntent } from \"./decisionEngine\";",
+      "const { analyzeIntent: analyzeDecisionIntent } = globalThis.__intentGuardTestDecisionEngine;",
+    ),
+);
 const redTeamModule = await loadTypeScript("src/lib/prompt/redTeam.ts");
 const evaluationModule = await loadTypeScript("src/lib/prompt/evaluation.ts");
 
@@ -60,6 +73,19 @@ test("legacy and decision analyzers expose known drift instead of hiding it", ()
   assert.equal(legacy.taskType, "legal_compliance");
   assert.equal(decision.taskType, "text_analysis");
   assert.notEqual(legacy.risk, decision.riskLevel);
+});
+
+test("analyzer audit reports task and risk drift without silently choosing a winner", () => {
+  const audit = analyzerAuditModule.auditIntentAnalyzers(
+    "Please review this contract for legal compliance.",
+    "en",
+  );
+
+  assert.equal(audit.consistent, false);
+  assert.ok(audit.differences.some((difference) => difference.field === "taskType"));
+  assert.ok(audit.differences.some((difference) => difference.field === "riskLevel"));
+  assert.equal(audit.legacy.taskType, "legal_compliance");
+  assert.equal(audit.decision.taskType, "text_analysis");
 });
 
 test("rule-derived decision confidence is not reported as directly measured", () => {
