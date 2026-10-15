@@ -122,13 +122,9 @@ export function searchPublishedAssets(
       if (!latest) return [];
       const corpus = new Set(
         normalize(
-          [
-            asset.name,
-            asset.archetype,
-            latest.note,
-            latest.prompt.system,
-            latest.prompt.user,
-          ].join(" "),
+          [asset.name, asset.archetype, latest.note, latest.prompt.system, latest.prompt.user].join(
+            " ",
+          ),
         ).split(" "),
       );
       const matchedTerms = queryTerms.filter((term) => corpus.has(term));
