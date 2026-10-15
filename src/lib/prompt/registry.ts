@@ -1,5 +1,6 @@
 import type { CompiledPrompt, Archetype } from "./types";
 import { normalize } from "../engine.mjs";
+import { writeCloudRegistry } from "../cloudRegistry";
 
 export type Lifecycle = "draft" | "review" | "published" | "deprecated";
 
@@ -195,6 +196,10 @@ const flush = (): void => {
   if (typeof window !== "undefined" && cache) {
     try {
       localStorage.setItem(KEY, JSON.stringify(cache));
+      // Cloud sync is opt-in; credentials/session are managed separately and never included in this snapshot.
+      void writeCloudRegistry(snapshot(cache)).catch(() => {
+        // Local-first operation remains available while cloud sync is disconnected or misconfigured.
+      });
     } catch (error) {
       // Keep the in-memory state usable if browser storage is unavailable/full.
       console.error("Unable to persist prompt registry:", error);
@@ -267,6 +272,17 @@ export function diffLines(a: string, b: string) {
 export const registry = {
   read(): State {
     return snapshot(load());
+  },
+
+  replaceState(next: State): State {
+    const state: State = {
+      assets: Array.isArray(next.assets) ? next.assets as PromptAsset[] : [],
+      audit: Array.isArray(next.audit) ? next.audit as AuditEntry[] : [],
+    };
+    cache = state;
+    reindex(state);
+    flush();
+    return snapshot(state);
   },
 
   get(id: string): PromptAsset | undefined {
