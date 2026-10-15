@@ -58,7 +58,6 @@ export function validateGemini(x: ReturnType<typeof toGemini>): ValidationResult
   return { valid: errors.length === 0, errors };
 }
 
-
 export function validateOpenAI(x: ReturnType<typeof toOpenAI>): ValidationResult {
   const e: string[] = [];
   if (!x.model) e.push("model is required");
