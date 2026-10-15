@@ -514,7 +514,11 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
           </span>
         }
       >
-        <p className="mb-3 text-sm text-muted-foreground">{ar ? "يكشف هذا الفحص الاختلافات بين محلل النية القديم ومحرك القرار؛ ولا يقوم بتسويتها بصمت." : "This audit surfaces differences between the legacy intent analyzer and the decision engine without silently reconciling them."}</p>
+        <p className="mb-3 text-sm text-muted-foreground">
+          {ar
+            ? "يكشف هذا الفحص الاختلافات بين محلل النية القديم ومحرك القرار؛ ولا يقوم بتسويتها بصمت."
+            : "This audit surfaces differences between the legacy intent analyzer and the decision engine without silently reconciling them."}
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-md border p-3">
             <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
