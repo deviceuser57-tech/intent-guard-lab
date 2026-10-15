@@ -17,7 +17,7 @@ test("registry retrieval returns relevant published examples only", async () => 
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const registryModule = await import(
-    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`,
+    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`
   );
   const asset = (id, name, status, archetype, system, securityScore) => ({
     id,
@@ -80,7 +80,10 @@ test("registry retrieval returns relevant published examples only", async () => 
     "research",
     3,
   );
-  assert.deepEqual(results.map((result) => result.assetId), ["published-1", "published-2"]);
+  assert.deepEqual(
+    results.map((result) => result.assetId),
+    ["published-1", "published-2"],
+  );
   assert.equal(results[0].version, "1.0.0");
   assert.equal(results[0].relevance, 1);
   assert.equal(results[1].relevance, 2 / 3);
