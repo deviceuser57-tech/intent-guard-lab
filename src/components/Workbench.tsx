@@ -1641,7 +1641,7 @@ function AiOptimizer({
               {retrievedExamples.map((example) => (
                 <li key={example.assetId}>
                   <code>{example.name}</code> · v{example.version} ·{" "}
-                  {Math.round(example.relevance * 100)}% lexical match · security{" "}
+                  {Math.round(example.relevance * 100)}% relevance · security{" "}
                   {example.securityScore}/100
                 </li>
               ))}
