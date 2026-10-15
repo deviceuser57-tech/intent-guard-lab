@@ -484,7 +484,7 @@ export function Workbench() {
               </div>
             ) : tab === "playground" ? (
               <div className="space-y-4">
-                <Playground c={compiled} t={t} />
+                <Playground c={compiled} t={t} providerConfig={providerConfig} />
                 {governance && <GovernancePanels result={governance} lang={lang} />}
               </div>
             ) : (
@@ -1363,6 +1363,7 @@ function AiOptimizer({
   const opt = useServerFn(optimizePrompt);
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
+  const embed = useServerFn(embedTexts);
   const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning" | "gemini" | "deepseek" | "openai-compatible">(
     providerConfig.provider === "openai-compatible" ? "openai-compatible" : providerConfig.provider,
   );
@@ -1678,13 +1679,14 @@ function AiOptimizer({
 function Playground({
   c,
   t,
+  providerConfig,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
   t: (k: string) => string;
+  providerConfig: ModelProviderConfig;
 }) {
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
-  const embed = useServerFn(embedTexts);
   const vars = useMemo(
     () =>
       Array.from(
@@ -1706,11 +1708,11 @@ function Playground({
     try {
       const system = sub(c.system),
         user = sub(c.user);
-      const r = await run({ data: { system, user } });
+      const r = await run({ data: { system, user, providerConfig } });
       if (!r.ok) setErr(r.error);
       else {
         setOut(r.text);
-        const g = await judge({ data: { system, user, output: r.text } });
+        const g = await judge({ data: { system, user, output: r.text, providerConfig } });
         if (g.ok) setJ(g);
         else setErr(g.error);
       }
