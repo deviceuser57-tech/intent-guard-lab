@@ -17,7 +17,11 @@ test("rejects malformed JSON and non-object roots", () => {
   assert.match(validatePolicyContent("json", "{oops"), /JSON|position|property/i);
   assert.match(validatePolicyContent("json", "[]"), /root must be an object/i);
 });
-test("requires at least one rule", () => assert.match(validatePolicyContent("json", JSON.stringify({ rules: [] })), /non-empty "rules" array/i));
+test("requires at least one rule", () =>
+  assert.match(
+    validatePolicyContent("json", JSON.stringify({ rules: [] })),
+    /non-empty "rules" array/i,
+  ));
 test("rejects duplicate rule IDs", () => {
   const policy = {
     rules: [
@@ -61,6 +65,6 @@ test("scores exact configured phrase matches without claiming certification", ()
   assert.match(scoreOutput("A normal response.", valid).verdict, /not policy enforcement/);
 });
 test("neutralizes formula-like CSV cells and escapes quotes", () => {
-  assert.equal(csvCell("=1+1"), '"\'=1+1"');
+  assert.equal(csvCell("=1+1"), "\"'=1+1\"");
   assert.equal(csvCell('hello "world"'), '"hello ""world"""');
 });
