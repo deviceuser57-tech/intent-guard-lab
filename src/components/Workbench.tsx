@@ -356,7 +356,6 @@ export function Workbench() {
             <SpecPanel spec={spec} setSpec={setSpec} t={t} />
           ) : tab === "compiled" ? (
             <div className="space-y-4">
-              {governance && <GovernancePanels result={governance} lang={lang} />}
               <AiOptimizer
                 c={compiled}
                 findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)}
@@ -369,7 +368,10 @@ export function Workbench() {
           ) : tab === "playground" ? (
             <Playground c={compiled} t={t} />
           ) : (
-            <SecurityPanel report={report} evalR={evalR} t={t} />
+            <div className="space-y-4">
+              {governance && <GovernancePanels result={governance} lang={lang} />}
+              <SecurityPanel report={report} evalR={evalR} t={t} />
+            </div>
           )}
         </div>
       </main>
