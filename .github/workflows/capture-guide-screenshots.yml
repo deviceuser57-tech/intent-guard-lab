@@ -49,5 +49,6 @@ jobs:
             echo "Screenshots are unchanged."
           else
             git commit -m "Add real UI screenshots to user guide"
+            git pull --rebase origin main
             git push
           fi
