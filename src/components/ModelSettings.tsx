@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { testModelProvider } from "@/lib/ai.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { providerDefaults, type ModelProviderConfig, type ModelProvider } from "@/lib/prompt/providerTypes";
 
 const field = "w-full rounded-md border bg-background px-3 py-2 text-sm";
@@ -8,7 +9,7 @@ export function ModelSettings({ config, onChange, lang }: {
   onChange: (config: ModelProviderConfig) => void;
   lang: "ar" | "en";
 }) {
-  const test = testModelProvider;
+  const test = useServerFn(testModelProvider);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const ar = lang === "ar";
