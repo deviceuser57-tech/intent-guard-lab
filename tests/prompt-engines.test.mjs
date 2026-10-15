@@ -40,11 +40,11 @@ globalThis.__intentGuardTestDecisionEngine = decisionEngine;
 const analyzerAuditModule = await loadTypeScript("src/lib/prompt/analyzerAudit.ts", (source) =>
   source
     .replace(
-      "import { analyzeIntent as analyzeLegacyIntent } from \"./intentAnalyzer\";",
+      'import { analyzeIntent as analyzeLegacyIntent } from "./intentAnalyzer";',
       "const { analyzeIntent: analyzeLegacyIntent } = globalThis.__intentGuardTestLegacyAnalyzer;",
     )
     .replace(
-      "import { analyzeIntent as analyzeDecisionIntent } from \"./decisionEngine\";",
+      'import { analyzeIntent as analyzeDecisionIntent } from "./decisionEngine";',
       "const { analyzeIntent: analyzeDecisionIntent } = globalThis.__intentGuardTestDecisionEngine;",
     ),
 );
