@@ -426,7 +426,7 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
                     {categoryLabel[finding.category] ?? finding.category}
                   </span>
                   <span
-                    className={`rounded px-2 py-0.5 text-[10px] uppercase ${severityStyle[finding.severity] ?? severityStyle.info}`}
+                    className={`rounded px-2 py-0.5 text-[10px] uppercase ${severityStyle[finding.severity] ?? severityStyle["info"]}`}
                   >
                     {finding.severity}
                   </span>

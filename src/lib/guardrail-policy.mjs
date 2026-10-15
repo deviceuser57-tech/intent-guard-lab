@@ -1,6 +1,6 @@
 export function csvCell(value) {
   // Neutralize spreadsheet formula injection while preserving CSV quoting.
-  const safe = /^[=+\\-@\\t\\r]/.test(value) ? "'" + value : value;
+  const safe = /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
   return '"' + safe.replace(/"/g, '""') + '"';
 }
 
