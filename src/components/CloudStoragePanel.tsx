@@ -62,7 +62,7 @@ export function CloudStoragePanel({ lang }: { lang: "ar" | "en" }) {
     {status && <p role="status" className="text-sm">{status}</p>}
     <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
       <p><strong>{ar ? "الإعداد المطلوب" : "Required setup"}:</strong> {ar ? "أنشئ مشروع Supabase، فعّل Email/Password Auth، ثم نفّذ ملف docs/supabase-cloud-storage.sql في SQL Editor قبل الاتصال." : "Create a Supabase project, enable Email/Password Auth, then run docs/supabase-cloud-storage.sql in its SQL Editor before connecting."}</p>
-      <p className="mt-2">{ar ? "سياسة RLS تحصر كل سجل في المستخدم المصادق عليه. هذه النسخة توفر مزامنة صريحة؛ لا تدّعي مزامنة فورية متعددة المستخدمين." : "RLS scopes each snapshot to the authenticated user. This version provides explicit snapshot sync; it does not claim real-time multi-user collaboration."}</p>
+      <p className="mt-2">{ar ? "سياسة RLS تحصر كل سجل في المستخدم المصادق عليه. هذا يوفر حفظًا سحابيًا لكل مستخدم مع مزامنة بعد تغييرات السجل المحلي، وليس تعاونًا جماعيًا لحظيًا." : "RLS scopes each snapshot to the authenticated user. This provides per-user cloud persistence with background saves after local registry changes; it is not real-time team collaboration."}</p>
     </div>
   </section>;
 }
