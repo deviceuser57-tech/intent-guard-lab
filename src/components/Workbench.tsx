@@ -31,7 +31,7 @@ import type {
 import { makeT, type Lang } from "@/lib/i18n";
 import { useServerFn } from "@tanstack/react-start";
 import { gsap } from "gsap";
-import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
+import { optimizePrompt, runPrompt, judgeOutput, embedTexts } from "@/lib/ai.functions";
 import { GuardrailConsole } from "@/components/GuardrailConsole";
 import { ModelSettings } from "@/components/ModelSettings";
 import { CloudStoragePanel } from "@/components/CloudStoragePanel";
@@ -1389,7 +1389,36 @@ function AiOptimizer({
     }>
   >([]);
   const loadExamples = async () => {
-    const examples = registry.searchPublished(spec.goal || c.user, spec.archetype, 3);
+    const query = spec.goal || c.user;
+    const lexical = registry.searchPublished(query, spec.archetype, 3);
+    const candidates = registry.publishedExamples(spec.archetype, 9);
+    let examples = lexical;
+    if (providerConfig.apiKey.trim() && candidates.length > 0) {
+      try {
+        const embedded = await embed({
+          data: {
+            providerConfig,
+            texts: [query, ...candidates.map((item) => `${item.name}\n${item.system}\n${item.user}`.slice(0, 12000))],
+          },
+        });
+        if (embedded.ok && embedded.vectors.length === candidates.length + 1) {
+          const cosine = (left: number[], right: number[]) => {
+            const dot = left.reduce((sum, value, index) => sum + value * (right[index] ?? 0), 0);
+            const a = Math.sqrt(left.reduce((sum, value) => sum + value * value, 0));
+            const b = Math.sqrt(right.reduce((sum, value) => sum + value * value, 0));
+            return a && b ? dot / (a * b) : 0;
+          };
+          const queryVector = embedded.vectors[0]!;
+          examples = candidates.map((item, index) => ({
+            ...item,
+            relevance: cosine(queryVector, embedded.vectors[index + 1]!),
+            matchedTerms: [],
+          })).sort((left, right) => right.relevance - left.relevance || right.securityScore - left.securityScore).slice(0, 3);
+        }
+      } catch {
+        // Embedding failure is non-fatal; lexical retrieval remains available.
+      }
+    }
     setRetrievedExamples(examples);
     setRetrievalAttempted(true);
     return examples.map(({ name, version, system, user }) => ({ name, version, system, user }));
@@ -1397,7 +1426,9 @@ function AiOptimizer({
   const go = async (rounds: number) => {
     const examples = await loadExamples();
     setErr("");
-    let cur = { system: c.system, user: c.user };
+    const family = (target === "reasoning" ? (providerConfig.provider === "deepseek" ? "deepseek" : "openai") : target) as ProviderFamily;
+    const adapted = adaptPromptForModel({ system: c.system, user: c.user }, { provider: family, model: providerConfig.model });
+    let cur = { system: adapted.system, user: adapted.user };
     const all: string[] = [];
     try {
       for (let i = 0; i < rounds; i++) {
@@ -1653,6 +1684,7 @@ function Playground({
 }) {
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
+  const embed = useServerFn(embedTexts);
   const vars = useMemo(
     () =>
       Array.from(
