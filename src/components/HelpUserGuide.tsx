@@ -19,7 +19,7 @@ const guideSections = {
       { n: "06", title: "Validate and save", body: "Review Security / Validation and Guardrails. Use Prompt Registry to save a named asset and track versions. Local browser storage is not an enterprise backup." },
     ],
     visualsTitle: "Screen-by-screen map",
-    visualsIntro: "Captured screenshots from the running application. Select each image to inspect the relevant screen."
+    visualsIntro: "Captured screenshots from the running application. Select each image to inspect the relevant screen.",
     visualCards: [
       { label: "START HERE", title: "Task input", desc: "Description → Archetype → Generate prompt", src: "/guide-screenshots/01-task-input.png" },
       { label: "UNDERSTAND", title: "Intent Analysis", desc: "Task type · Risk · Confidence · Signals", src: "/guide-screenshots/02-intent-analysis.png" },
@@ -59,7 +59,7 @@ const guideSections = {
       { n: "06", title: "تحقق واحفظ", body: "راجع Security / Validation وGuardrails. استخدم Prompt Registry لحفظ الأصل باسمه ومتابعة إصداراته. التخزين المحلي في المتصفح ليس نسخة احتياطية مؤسسية." },
     ],
     visualsTitle: "خريطة التنقل بين الشاشات",
-    visualsIntro: "لقطات شاشة فعلية من التطبيق أثناء تشغيله. افتح كل صورة لمعاينة الشاشة المرتبطة بالخطوة."
+    visualsIntro: "لقطات شاشة فعلية من التطبيق أثناء تشغيله. افتح كل صورة لمعاينة الشاشة المرتبطة بالخطوة.",
     visualCards: [
       { label: "ابدأ هنا", title: "Task input", desc: "Description → Archetype → Generate prompt", src: "/guide-screenshots/01-task-input.png" },
       { label: "افهم الطلب", title: "Intent Analysis", desc: "Task type · Risk · Confidence · Signals", src: "/guide-screenshots/02-intent-analysis.png" },
