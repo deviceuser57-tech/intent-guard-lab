@@ -11,7 +11,7 @@ test("provider exporters preserve existing adapters and validate Gemini payloads
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exporters = await import(
-    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`,
+    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`
   );
   const prompt = {
     system: "Act as a careful assistant.",
