@@ -188,12 +188,7 @@ export const registry = {
     return [...TRANSITIONS[from]];
   },
 
-  create(
-    name: string,
-    archetype: Archetype,
-    prompt: CompiledPrompt,
-    securityScore: number,
-  ): State {
+  create(name: string, archetype: Archetype, prompt: CompiledPrompt, securityScore: number): State {
     const state = load();
     const id = uid();
 

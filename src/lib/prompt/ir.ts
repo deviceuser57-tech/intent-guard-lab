@@ -85,42 +85,68 @@ export function buildPromptIR(
       source: "user",
     },
     context: { available: [], selected: [], actuallyUsed: [] },
-    inputs: [{
-      id: "user-request",
-      name: "User request",
-      type: "text",
-      required: true,
-      description: "Prompt text entered in the Workbench",
-      value: sourceText,
-    }],
+    inputs: [
+      {
+        id: "user-request",
+        name: "User request",
+        type: "text",
+        required: true,
+        description: "Prompt text entered in the Workbench",
+        value: sourceText,
+      },
+    ],
     constraints,
     reasoningApproach: {
-      approach: uiSpec.reasoning === "step_by_step" ? "step_by_step" : uiSpec.reasoning === "brief" ? "concise" : "none",
+      approach:
+        uiSpec.reasoning === "step_by_step"
+          ? "step_by_step"
+          : uiSpec.reasoning === "brief"
+            ? "concise"
+            : "none",
       exposeReasoning: false,
     },
-    ...(isResearch || isHighRisk ? {
-      grounding: {
-        required: isResearch,
-        sourcePolicy: "mixed" as const,
-        citationRequired: isResearch,
-        missingEvidenceHandling: "state_uncertainty" as const,
-      },
-      evidencePolicy: {
-        levels: ["direct", "contextual", "referenced", "inferred"] as ("direct" | "contextual" | "referenced" | "inferred" | "analogical")[],
-        minimumLevel: isResearch ? "referenced" : "contextual",
-        requireCitation: isResearch,
-      },
-    } : {}),
+    ...(isResearch || isHighRisk
+      ? {
+          grounding: {
+            required: isResearch,
+            sourcePolicy: "mixed" as const,
+            citationRequired: isResearch,
+            missingEvidenceHandling: "state_uncertainty" as const,
+          },
+          evidencePolicy: {
+            levels: ["direct", "contextual", "referenced", "inferred"] as (
+              "direct" | "contextual" | "referenced" | "inferred" | "analogical"
+            )[],
+            minimumLevel: isResearch ? "referenced" : "contextual",
+            requireCitation: isResearch,
+          },
+        }
+      : {}),
     output: {
       format: uiSpec.outputFormat,
       language: language === "ar" ? "ar" : "en",
       length: { max: uiSpec.maxWords, unit: "words" },
-      ...(uiSpec.outputSchema.trim() ? { validationRules: [`Output schema supplied: ${uiSpec.outputSchema.trim().slice(0, 500)}`] } : {}),
+      ...(uiSpec.outputSchema.trim()
+        ? {
+            validationRules: [
+              `Output schema supplied: ${uiSpec.outputSchema.trim().slice(0, 500)}`,
+            ],
+          }
+        : {}),
     },
     qualityCriteria: [],
-    ...(uiSpec.examples.trim() ? {
-      examples: [{ id: "workbench-example", input: "Representative input", output: uiSpec.examples, description: "Example supplied in Workbench" }],
-    } : {}),
+    ...(uiSpec.examples.trim()
+      ? {
+          examples: [
+            {
+              id: "workbench-example",
+              input: "Representative input",
+              output: uiSpec.examples,
+              description: "Example supplied in Workbench",
+            },
+          ],
+        }
+      : {}),
     failureHandling: {
       onMissingInput: "ask_user",
       onAmbiguity: "clarify",
@@ -162,7 +188,8 @@ export function buildPromptIR(
       tags: [language, uiSpec.archetype],
       domain: uiSpec.archetype,
       category: uiSpec.outputFormat,
-      changeSummary: "Generated from the active Workbench specification; execution tests have not been run.",
+      changeSummary:
+        "Generated from the active Workbench specification; execution tests have not been run.",
     },
   };
   const findings = lintPrompt(specification, decisions);

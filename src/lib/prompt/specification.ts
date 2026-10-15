@@ -6,30 +6,30 @@
  * ============================================================================ */
 
 export type EvidenceStatus =
-  | "measured"      // Actual execution/observation occurred
-  | "inferred"      // Derived from related evidence
-  | "estimated"     // Prediction without direct evidence
-  | "not_tested";   // No attempt to measure
+  | "measured" // Actual execution/observation occurred
+  | "inferred" // Derived from related evidence
+  | "estimated" // Prediction without direct evidence
+  | "not_tested"; // No attempt to measure
 
 export interface EvidenceItem {
-  source: string;        // e.g., "task_analysis", "user_input", "policy_rule"
-  observation: string;   // What was observed
-  timestamp?: number;    // When measured
+  source: string; // e.g., "task_analysis", "user_input", "policy_rule"
+  observation: string; // What was observed
+  timestamp?: number; // When measured
 }
 
 export interface EvidenceScore {
-  value?: number;                    // 0-100, only if measured/inferred
-  status: EvidenceStatus;            // How this score was derived
-  basis: string;                     // One-line explanation
-  evidence: EvidenceItem[];          // Supporting observations
-  measuredAt?: number;               // Timestamp of last measurement
+  value?: number; // 0-100, only if measured/inferred
+  status: EvidenceStatus; // How this score was derived
+  basis: string; // One-line explanation
+  evidence: EvidenceItem[]; // Supporting observations
+  measuredAt?: number; // Timestamp of last measurement
 }
 
 export function createEvidenceScore(
   status: EvidenceStatus,
   basis: string,
   value?: number,
-  evidence: EvidenceItem[] = []
+  evidence: EvidenceItem[] = [],
 ): EvidenceScore {
   return {
     ...(value !== undefined ? { value } : {}),
@@ -54,7 +54,7 @@ export function emptyEvidenceScore(): EvidenceScore {
  * This is the model-independent, serializable, versionable, testable
  * representation of a prompt. The final prompt text is a COMPILED artifact
  * derived from this specification.
- * 
+ *
  * Key principles:
  * - Never treat the final prompt text as the source of truth
  * - Every field must be serializable to JSON
@@ -62,29 +62,13 @@ export function emptyEvidenceScore(): EvidenceScore {
  * - The specification is model-independent; adapters compile it per model
  * ============================================================================ */
 
-export type ComponentStatus = 
-  | "required"
-  | "recommended"
-  | "optional"
-  | "not_applicable"
-  | "auto";
+export type ComponentStatus = "required" | "recommended" | "optional" | "not_applicable" | "auto";
 
 export type ExecutionStatus =
-  | "measured"
-  | "estimated"
-  | "inferred"
-  | "not_executed"
-  | "unavailable";
+  "measured" | "estimated" | "inferred" | "not_executed" | "unavailable";
 
 export type LifecycleState =
-  | "draft"
-  | "review"
-  | "test"
-  | "approved"
-  | "published"
-  | "monitored"
-  | "deprecated"
-  | "archived";
+  "draft" | "review" | "test" | "approved" | "published" | "monitored" | "deprecated" | "archived";
 
 export type ReadinessState =
   | "not_evaluated"
@@ -122,7 +106,15 @@ export interface PersonaSpec {
   description: Bi;
   domain?: string;
   expertise?: string[];
-  tone?: "professional" | "creative" | "technical" | "casual" | "academic" | "executive" | "concise" | "detailed";
+  tone?:
+    | "professional"
+    | "creative"
+    | "technical"
+    | "casual"
+    | "academic"
+    | "executive"
+    | "concise"
+    | "detailed";
   source: "system" | "user" | "auto_suggested";
 }
 
@@ -216,7 +208,11 @@ export interface EvidencePolicy {
 export interface OutputSpec {
   format: string; // e.g., "markdown", "json", "image", "code"
   schema?: Record<string, unknown>; // For structured outputs
-  length?: { min?: number; max?: number; unit: "words" | "tokens" | "characters" | "images" | "pages" };
+  length?: {
+    min?: number;
+    max?: number;
+    unit: "words" | "tokens" | "characters" | "images" | "pages";
+  };
   language?: string;
   mimeType?: string;
   validationRules?: string[];
@@ -378,56 +374,56 @@ export interface PromptSpecification {
   objective: string;
   domain?: string;
   taskType: TaskType;
-  
+
   // Role
   role?: PersonaSpec;
-  
+
   // Context
   context: ContextSpec;
-  
+
   // Inputs
   inputs: InputSpec[];
-  
+
   // Constraints
   constraints: ConstraintSpec[];
-  
+
   // Reasoning
   reasoningApproach?: ReasoningSpec;
-  
+
   // Grounding & Evidence
   grounding?: GroundingSpec;
   evidencePolicy?: EvidencePolicy;
-  
+
   // Output
   output: OutputSpec;
-  
+
   // Quality
   qualityCriteria: QualityCriterion[];
-  
+
   // Examples
   examples?: ExampleSpec[];
-  
+
   // Failure Handling
   failureHandling: FailureHandlingSpec;
-  
+
   // Security
   security: SecuritySpec;
-  
+
   // Tools
   tools?: ToolPolicy;
-  
+
   // RAG
   rag?: RAGConfig;
-  
+
   // Workflow
   workflow?: WorkflowSpec;
-  
+
   // Evaluation
   evaluation: EvaluationSpec;
-  
+
   // Model
   modelRequirements?: ModelRequirements;
-  
+
   // Metadata
   metadata: PromptMetadata;
 }
@@ -439,9 +435,10 @@ export interface PromptComponentDecision {
   component: string;
   status: ComponentStatus;
   reason: string;
-  evidence?: import("./specification").EvidenceScore;  // Evidence-backed confidence
+  evidence?: import("./specification").EvidenceScore; // Evidence-backed confidence
   dependencies?: string[];
-  source: "task_analysis" | "risk_policy" | "user_selection" | "dependency_rule" | "system_safeguard";
+  source:
+    "task_analysis" | "risk_policy" | "user_selection" | "dependency_rule" | "system_safeguard";
   trace?: {
     ruleId?: string;
     policyId?: string;

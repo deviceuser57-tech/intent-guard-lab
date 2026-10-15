@@ -154,7 +154,6 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-
 @layer base {
   * {
     border-color: var(--color-border);
