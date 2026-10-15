@@ -12,6 +12,18 @@ export interface CloudConnection {
 }
 const SESSION_KEY = "intent-guard.cloud-session.v1";
 
+// Registry changes trigger best-effort cloud persistence only after the user connects.
+if (typeof window !== "undefined") {
+  window.addEventListener("intent-guard:registry-changed", (event: Event) => {
+    const connection = getCloudConnection();
+    if (!connection) return;
+    const detail = (event as CustomEvent<RegistrySnapshot>).detail;
+    if (detail) void writeCloudRegistry(detail).catch(() => {
+      // Local persistence remains the source of continuity when the cloud is temporarily unavailable.
+    });
+  });
+}
+
 export function getCloudConnection(): CloudConnection | null {
   if (typeof window === "undefined") return null;
   try {
