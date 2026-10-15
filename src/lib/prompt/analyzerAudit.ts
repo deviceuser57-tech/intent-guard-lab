@@ -1,6 +1,9 @@
 import { analyzeIntent as analyzeLegacyIntent } from "./intentAnalyzer";
 import { analyzeIntent as analyzeDecisionIntent } from "./decisionEngine";
-import type { IntentAnalysis as DecisionIntent, TaskType as DecisionTaskType } from "./specification";
+import type {
+  IntentAnalysis as DecisionIntent,
+  TaskType as DecisionTaskType,
+} from "./specification";
 import type { Complexity, RiskLevel, TaskType as LegacyTaskType } from "./types";
 
 const LEGACY_TO_DECISION_TASK: Record<LegacyTaskType, DecisionTaskType> = {
