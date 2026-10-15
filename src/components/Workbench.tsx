@@ -56,6 +56,11 @@ const L2: Record<string, { en: string; ar: string }> = {
   aiJudgeScore: { en: "AI judge", ar: "تقييم النموذج" },
   staticScore: { en: "Static evaluation", ar: "التقييم القاعدي" },
   redTeamScore: { en: "Red-team", ar: "الفحص الأمني" },
+  retrievedExamples: { en: "Published examples retrieved", ar: "أمثلة منشورة مسترجعة" },
+  noRegistryExamples: {
+    en: "No published examples matched this task; optimization continued without retrieval.",
+    ar: "لم تُطابق المهمة أي أمثلة منشورة؛ استمر التحسين دون استرجاع أمثلة.",
+  },
   revert: { en: "Revert to rule-based", ar: "العودة للنسخة القياسية" },
   working: { en: "Working…", ar: "جارٍ العمل…" },
   changes: { en: "AI changes", ar: "تغييرات الذكاء الاصطناعي" },
@@ -1322,6 +1327,8 @@ function AiOptimizer({
   const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning">("openai");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
+  const [retrievedExamples, setRetrievedExamples] = useState<ReturnType<typeof registry.searchPublished>>([]);
+  const [retrievalAttempted, setRetrievalAttempted] = useState(false);
   const [candidateResults, setCandidateResults] = useState<
     Array<{
       index: number;
@@ -1338,14 +1345,21 @@ function AiOptimizer({
       selected: boolean;
     }>
   >([]);
+  const loadExamples = () => {
+    const examples = registry.searchPublished(spec.goal || c.user, spec.archetype, 3);
+    setRetrievedExamples(examples);
+    setRetrievalAttempted(true);
+    return examples.map(({ name, version, system, user }) => ({ name, version, system, user }));
+  };
   const go = async (rounds: number) => {
+    const examples = loadExamples();
     setErr("");
     let cur = { system: c.system, user: c.user };
     const all: string[] = [];
     try {
       for (let i = 0; i < rounds; i++) {
         setBusy(`${t("working")} ${rounds > 1 ? `${i + 1}/${rounds}` : ""}`);
-        const r = await opt({ data: { ...cur, findings: i === 0 ? findings : [], target } });
+        const r = await opt({ data: { ...cur, findings: i === 0 ? findings : [], examples, target } });
         if (!r.ok) {
           setErr(r.error);
           break;
@@ -1378,11 +1392,12 @@ function AiOptimizer({
     }> = [];
     const failures: string[] = [];
     const base = { system: c.system, user: c.user };
+    const examples = loadExamples();
 
     try {
       for (let index = 1; index <= 2; index++) {
         setBusy(`${t("comparingCandidates")} ${index}/2`);
-        const optimized = await opt({ data: { ...base, findings, target } });
+        const optimized = await opt({ data: { ...base, findings, examples, target } });
         if (!optimized.ok) {
           failures.push(optimized.error);
           continue;
@@ -1509,6 +1524,26 @@ function AiOptimizer({
         </button>
         {busy && <span className="text-xs text-muted-foreground">{busy}</span>}
       </div>
+      {retrievalAttempted && (
+        <div className="mt-3 rounded-md border p-3">
+          <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
+            {t("retrievedExamples")}
+          </h4>
+          {retrievedExamples.length > 0 ? (
+            <ul className="space-y-1 text-xs">
+              {retrievedExamples.map((example) => (
+                <li key={example.assetId}>
+                  <code>{example.name}</code> · v{example.version} ·{" "}
+                  {Math.round(example.relevance * 100)}% lexical match · security{" "}
+                  {example.securityScore}/100
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t("noRegistryExamples")}</p>
+          )}
+        </div>
+      )}
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
       {candidateResults.length > 0 && (
         <div className="mt-3 space-y-2 rounded-md border p-3">
