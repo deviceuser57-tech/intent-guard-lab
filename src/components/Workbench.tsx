@@ -1832,11 +1832,24 @@ function Playground({
     try {
       const system = sub(c.system),
         user = sub(c.user);
-      const r = await run({ data: { system, user, providerConfig } });
+      const adapted = adaptPromptForModel(
+        { system, user },
+        { provider: providerConfig.provider, model: providerConfig.model },
+      );
+      const r = await run({
+        data: { system: adapted.system, user: adapted.user, providerConfig },
+      });
       if (!r.ok) setErr(r.error);
       else {
         setOut(r.text);
-        const g = await judge({ data: { system, user, output: r.text, providerConfig } });
+        const g = await judge({
+          data: {
+            system: adapted.system,
+            user: adapted.user,
+            output: r.text,
+            providerConfig,
+          },
+        });
         if (g.ok) setJ(g);
         else setErr(g.error);
       }
