@@ -114,3 +114,37 @@ function evaluateRaw(p: CompiledPrompt, spec: Specification, a: IntentAnalysis):
     overall: clamp(metrics.reduce((s, m) => s + m.value, 0) / metrics.length),
   };
 }
+
+export interface MetricDelta {
+  key: string;
+  before: number;
+  after: number;
+  delta: number;
+}
+
+export interface EvalComparison {
+  overallDelta: number;
+  tokenDelta: number;
+  metrics: MetricDelta[];
+  improvements: string[];
+  regressions: string[];
+}
+
+/** Compare two static evaluation reports without implying that either was executed. */
+export function compareEvaluations(baseline: EvalReport, candidate: EvalReport): EvalComparison {
+  const candidateMetrics = new Map(candidate.metrics.map((metric) => [metric.key, metric.value]));
+  const metrics = baseline.metrics.flatMap((metric) => {
+    const after = candidateMetrics.get(metric.key);
+    return after === undefined
+      ? []
+      : [{ key: metric.key, before: metric.value, after, delta: after - metric.value }];
+  });
+
+  return {
+    overallDelta: candidate.overall - baseline.overall,
+    tokenDelta: candidate.tokens.total - baseline.tokens.total,
+    metrics,
+    improvements: metrics.filter((metric) => metric.delta > 0).map((metric) => metric.key),
+    regressions: metrics.filter((metric) => metric.delta < 0).map((metric) => metric.key),
+  };
+}

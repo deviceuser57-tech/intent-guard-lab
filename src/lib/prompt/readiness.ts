@@ -52,7 +52,7 @@ function assessClarity(spec: PromptSpecification): ScoreDimension {
   return {
     name: "Clarity",
     value: Math.min(100, Math.max(0, value)),
-    status: "measured",
+    status: "inferred",
     evidence,
   };
 }
@@ -91,7 +91,7 @@ function assessTaskAlignment(spec: PromptSpecification): ScoreDimension {
   return {
     name: "Task Alignment",
     value: Math.min(100, Math.max(0, value)),
-    status: "measured",
+    status: "inferred",
     evidence,
   };
 }
@@ -122,7 +122,7 @@ function assessConstraintCoverage(spec: PromptSpecification): ScoreDimension {
   return {
     name: "Constraint Coverage",
     value: Math.min(100, Math.max(0, value)),
-    status: "measured",
+    status: "inferred",
     evidence,
   };
 }
@@ -158,7 +158,7 @@ function assessOutputCompliance(spec: PromptSpecification): ScoreDimension {
   return {
     name: "Output Compliance",
     value: Math.min(100, Math.max(0, value)),
-    status: "measured",
+    status: "inferred",
     evidence,
   };
 }
@@ -194,7 +194,7 @@ function assessSecurity(spec: PromptSpecification, findings: ValidationFinding[]
   return {
     name: "Security",
     value: Math.min(100, Math.max(0, value)),
-    status: "measured",
+    status: "inferred",
     evidence,
   };
 }
@@ -345,11 +345,12 @@ export function assessReadiness(
   }
   // Check average score
   else {
-    const measuredDimensions = dimensions.filter(
-      (d) => d.status === "measured" && d.value !== undefined,
+    const scoredDimensions = dimensions.filter(
+      (dimension) => dimension.value !== undefined && dimension.status !== "not_tested",
     );
     const avgScore =
-      measuredDimensions.reduce((sum, d) => sum + (d.value || 0), 0) / measuredDimensions.length;
+      scoredDimensions.reduce((sum, dimension) => sum + (dimension.value ?? 0), 0) /
+      scoredDimensions.length;
 
     if (avgScore >= 80 && lintSummary.fail === 0) {
       overallState = "ready_for_release";

@@ -1,4 +1,5 @@
 import type { CompiledPrompt, Archetype } from "./types";
+import { normalize } from "../engine.mjs";
 
 export type Lifecycle = "draft" | "review" | "published" | "deprecated";
 
@@ -57,6 +58,99 @@ const snapshot = (state: State): State => ({
 });
 
 const emptyState = (): State => ({ assets: [], audit: [] });
+
+export interface PublishedPromptExample {
+  assetId: string;
+  name: string;
+  archetype: Archetype;
+  version: string;
+  system: string;
+  user: string;
+  securityScore: number;
+  relevance: number;
+  matchedTerms: string[];
+}
+
+const SEARCH_STOPWORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "that",
+  "this",
+  "from",
+  "into",
+  "please",
+  "make",
+  "create",
+  "write",
+  "using",
+  "about",
+  "task",
+  "prompt",
+  "من",
+  "في",
+  "على",
+  "عن",
+  "هذا",
+  "هذه",
+  "كيف",
+]);
+
+/** Lexical retrieval over published assets only; this is not semantic search. */
+export function searchPublishedAssets(
+  assets: PromptAsset[],
+  query: string,
+  archetype?: Archetype,
+  limit = 3,
+): PublishedPromptExample[] {
+  const queryTerms = Array.from(
+    new Set(
+      normalize(query)
+        .split(" ")
+        .filter((term) => term.length >= 3 && !SEARCH_STOPWORDS.has(term)),
+    ),
+  );
+  if (queryTerms.length === 0 || limit <= 0) return [];
+
+  return assets
+    .filter(
+      (asset) => asset.status === "published" && (!archetype || asset.archetype === archetype),
+    )
+    .flatMap((asset) => {
+      const latest = asset.versions[asset.versions.length - 1];
+      if (!latest) return [];
+      const corpus = new Set(
+        normalize(
+          [asset.name, asset.archetype, latest.note, latest.prompt.system, latest.prompt.user].join(
+            " ",
+          ),
+        ).split(" "),
+      );
+      const matchedTerms = queryTerms.filter((term) => corpus.has(term));
+      if (matchedTerms.length === 0) return [];
+      return [
+        {
+          assetId: asset.id,
+          name: asset.name,
+          archetype: asset.archetype,
+          version: latest.version,
+          system: latest.prompt.system,
+          user: latest.prompt.user,
+          securityScore: latest.securityScore,
+          relevance: matchedTerms.length / queryTerms.length,
+          matchedTerms,
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        right.relevance - left.relevance ||
+        right.securityScore - left.securityScore ||
+        left.name.localeCompare(right.name),
+    )
+    .slice(0, Math.min(10, Math.floor(limit)));
+}
 
 const load = (): State => {
   if (typeof window === "undefined") {
@@ -178,6 +272,10 @@ export const registry = {
   get(id: string): PromptAsset | undefined {
     load();
     return index.get(id);
+  },
+
+  searchPublished(query: string, archetype?: Archetype, limit = 3): PublishedPromptExample[] {
+    return searchPublishedAssets(load().assets, query, archetype, limit);
   },
 
   canTransition(from: Lifecycle, to: Lifecycle): boolean {

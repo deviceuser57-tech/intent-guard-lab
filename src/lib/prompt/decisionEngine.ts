@@ -200,8 +200,8 @@ export function decideComponents(intent: IntentAnalysis): PromptComponentDecisio
     const evidence: EvidenceScore | undefined =
       confidenceValue !== undefined
         ? createEvidenceScore(
-            confidenceValue >= 0.9 ? "measured" : confidenceValue >= 0.7 ? "inferred" : "estimated",
-            `Confidence ${Math.round(confidenceValue * 100)}% based on ${source}`,
+            "estimated",
+            `Rule-based estimate: ${Math.round(confidenceValue * 100)}% based on ${source}; not an execution measurement`,
             Math.round(confidenceValue * 100),
             [{ source, observation: reason }],
           )

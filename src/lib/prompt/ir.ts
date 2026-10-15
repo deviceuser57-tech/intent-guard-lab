@@ -1,4 +1,5 @@
 import { analyzeIntent, decideComponents } from "./decisionEngine";
+import { auditIntentAnalyzers, type AnalyzerAudit } from "./analyzerAudit";
 import { lintPrompt } from "./linter";
 import { assessReadiness } from "./readiness";
 import type { Specification as WorkbenchSpecification } from "./types";
@@ -49,6 +50,7 @@ export interface PromptIRResult {
   decisions: PromptComponentDecision[];
   findings: ValidationFinding[];
   readiness: ReadinessAssessment;
+  analyzerAudit: AnalyzerAudit;
 }
 
 export function buildPromptIR(
@@ -58,6 +60,7 @@ export function buildPromptIR(
 ): PromptIRResult {
   const intent = analyzeIntent(sourceText, language);
   const decisions = decideComponents(intent);
+  const analyzerAudit = auditIntentAnalyzers(sourceText, language, intent);
   const now = new Date().toISOString();
   const constraints = uiSpec.constraints.map((description, index) => ({
     id: `constraint-${index + 1}`,
@@ -194,5 +197,5 @@ export function buildPromptIR(
   };
   const findings = lintPrompt(specification, decisions);
   const readiness = assessReadiness(specification, decisions);
-  return { specification, intent, decisions, findings, readiness };
+  return { specification, intent, decisions, findings, readiness, analyzerAudit };
 }

@@ -3,6 +3,7 @@ import { analyzeIntent } from "@/lib/prompt/intentAnalyzer";
 import { compile, defaultSpec, DEFAULT_ADV } from "@/lib/prompt/compiler";
 import { redTeam } from "@/lib/prompt/redTeam";
 import { evaluate } from "@/lib/prompt/evaluation";
+import { rankCandidates } from "@/lib/prompt/optimization";
 import {
   registry,
   diffLines,
@@ -13,9 +14,11 @@ import {
 import {
   toOpenAI,
   toAnthropic,
+  toGemini,
   toRaw,
   validateOpenAI,
   validateAnthropic,
+  validateGemini,
 } from "@/lib/prompt/exporters";
 import type {
   AdvancedControls,
@@ -45,6 +48,29 @@ const L2: Record<string, { en: string; ar: string }> = {
   target: { en: "Target model", ar: "النموذج المستهدف" },
   optimize: { en: "Optimize with AI", ar: "حسّن بالذكاء الاصطناعي" },
   evolve: { en: "Auto-evolve (3 rounds)", ar: "تطوير تلقائي (3 جولات)" },
+  compareCandidates: {
+    en: "Compare 2 candidates (up to 6 AI requests)",
+    ar: "قارن نسختين (حتى 6 طلبات ذكاء اصطناعي)",
+  },
+  comparingCandidates: { en: "Comparing candidates…", ar: "جارٍ مقارنة النسخ…" },
+  candidateResults: { en: "Candidate comparison", ar: "مقارنة النسخ" },
+  selectedCandidate: { en: "Selected", ar: "المختارة" },
+  aiJudgeScore: { en: "AI judge", ar: "تقييم النموذج" },
+  staticScore: { en: "Static evaluation", ar: "التقييم القاعدي" },
+  redTeamScore: { en: "Red-team", ar: "الفحص الأمني" },
+  analyzerAuditDescription: {
+    en: "Diagnostic comparison of both analyzers. Differences are shown for review rather than silently merged.",
+    ar: "مقارنة تشخيصية بين المحللين. تُعرض الاختلافات للمراجعة بدلًا من دمجها دون إظهارها.",
+  },
+  candidateRankingNote: {
+    en: "AI judge scores are model judgments, not independent ground truth. Ranking prioritizes fewer high-severity findings, then judge score, static security, static evaluation, and token use.",
+    ar: "درجات المحكّم تقديرات نموذجية وليست حقيقة مستقلة. تُرتّب النسخ أولًا حسب تقليل الملاحظات عالية الخطورة، ثم تقييم النموذج والأمان والتقييم القاعدي وعدد الرموز.",
+  },
+  retrievedExamples: { en: "Published examples retrieved", ar: "أمثلة منشورة مسترجعة" },
+  noRegistryExamples: {
+    en: "No published examples matched this task; optimization continued without retrieval.",
+    ar: "لم تُطابق المهمة أي أمثلة منشورة؛ استمر التحسين دون استرجاع أمثلة.",
+  },
   revert: { en: "Revert to rule-based", ar: "العودة للنسخة القياسية" },
   working: { en: "Working…", ar: "جارٍ العمل…" },
   changes: { en: "AI changes", ar: "تغييرات الذكاء الاصطناعي" },
@@ -424,6 +450,8 @@ export function Workbench() {
                 {governance && <GovernancePanels result={governance} lang={lang} />}
                 <AiOptimizer
                   c={compiled}
+                  spec={spec}
+                  a={analysis}
                   findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)}
                   ov={aiOv}
                   setOv={setAiOv}
@@ -472,6 +500,72 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
   };
   return (
     <div className="space-y-4">
+      <Card
+        title={ar ? "اتساق محللات النية" : "Intent Analyzer Consistency"}
+        right={
+          <span className="rounded bg-secondary px-2 py-1 text-xs">
+            {result.analyzerAudit.consistent
+              ? ar
+                ? "متوافق"
+                : "CONSISTENT"
+              : ar
+                ? "اختلافات مكتشفة"
+                : `${result.analyzerAudit.differences.length} DIFFERENCE(S)`}
+          </span>
+        }
+      >
+        <p className="mb-3 text-sm text-muted-foreground">{t("analyzerAuditDescription")}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-md border p-3">
+            <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
+              {ar ? "المحلل القديم" : "Legacy Analyzer"}
+            </h4>
+            <p className="text-sm">
+              Task: <code>{result.analyzerAudit.legacy.taskType}</code>
+            </p>
+            <p className="text-sm">
+              Risk: <code>{result.analyzerAudit.legacy.riskLevel}</code>
+            </p>
+            <p className="text-sm">
+              Complexity: <code>{result.analyzerAudit.legacy.complexity}</code>
+            </p>
+          </div>
+          <div className="rounded-md border p-3">
+            <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
+              {ar ? "محرك القرار" : "Decision Engine"}
+            </h4>
+            <p className="text-sm">
+              Task: <code>{result.analyzerAudit.decision.taskType}</code>
+            </p>
+            <p className="text-sm">
+              Risk: <code>{result.analyzerAudit.decision.riskLevel}</code>
+            </p>
+            <p className="text-sm">
+              Complexity: <code>{result.analyzerAudit.decision.complexity}</code>
+            </p>
+          </div>
+        </div>
+        {result.analyzerAudit.differences.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {result.analyzerAudit.differences.map((difference) => (
+              <li
+                key={difference.field}
+                className="rounded-md border border-amber-500/30 p-3 text-sm"
+              >
+                <code>{difference.field}</code>: <code>{difference.legacyValue}</code>
+                {difference.normalizedLegacyValue && (
+                  <>
+                    {" "}
+                    ({ar ? "بعد توحيد التصنيف" : "normalized"}:{" "}
+                    <code>{difference.normalizedLegacyValue}</code>)
+                  </>
+                )}{" "}
+                → <code>{difference.decisionValue}</code>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
       <Card
         title="Decision Engine"
         right={
@@ -887,21 +981,30 @@ const CompiledPanel = memo(function CompiledPanel({
   c: NonNullable<ReturnType<typeof compile>>;
   t: (k: string) => string;
 }) {
-  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "raw">("split");
+  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "gemini" | "raw">("split");
   const oa = toOpenAI(c),
-    an = toAnthropic(c);
+    an = toAnthropic(c),
+    ge = toGemini(c);
   const v =
-    prov === "openai" ? validateOpenAI(oa) : prov === "anthropic" ? validateAnthropic(an) : null;
+    prov === "openai"
+      ? validateOpenAI(oa)
+      : prov === "anthropic"
+        ? validateAnthropic(an)
+        : prov === "gemini"
+          ? validateGemini(ge)
+          : null;
   const text =
     prov === "openai"
       ? JSON.stringify(oa, null, 2)
       : prov === "anthropic"
         ? JSON.stringify(an, null, 2)
-        : toRaw(c);
+        : prov === "gemini"
+          ? JSON.stringify(ge, null, 2)
+          : toRaw(c);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1">
-        {(["split", "openai", "anthropic", "raw"] as const).map((p) => (
+        {(["split", "openai", "anthropic", "gemini", "raw"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setProv(p)}
@@ -1217,29 +1320,64 @@ function RegistryPanel({
 
 function AiOptimizer({
   c,
+  spec,
+  a,
   findings,
   ov,
   setOv,
   t,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
+  spec: Specification;
+  a: IntentAnalysis;
   findings: string[];
   ov: { changes: string[] } | null;
   setOv: (v: { system: string; user: string; changes: string[] } | null) => void;
   t: (k: string) => string;
 }) {
   const opt = useServerFn(optimizePrompt);
+  const run = useServerFn(runPrompt);
+  const judge = useServerFn(judgeOutput);
   const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning">("openai");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
+  const [retrievedExamples, setRetrievedExamples] = useState<
+    ReturnType<typeof registry.searchPublished>
+  >([]);
+  const [retrievalAttempted, setRetrievalAttempted] = useState(false);
+  const [candidateResults, setCandidateResults] = useState<
+    Array<{
+      index: number;
+      judgeScore: number;
+      verdict: string;
+      issues: string[];
+      securityScore: number;
+      highRiskFindings: number;
+      evaluationScore: number;
+      tokens: number;
+      changes: string[];
+      system: string;
+      user: string;
+      selected: boolean;
+    }>
+  >([]);
+  const loadExamples = () => {
+    const examples = registry.searchPublished(spec.goal || c.user, spec.archetype, 3);
+    setRetrievedExamples(examples);
+    setRetrievalAttempted(true);
+    return examples.map(({ name, version, system, user }) => ({ name, version, system, user }));
+  };
   const go = async (rounds: number) => {
+    const examples = loadExamples();
     setErr("");
     let cur = { system: c.system, user: c.user };
     const all: string[] = [];
     try {
       for (let i = 0; i < rounds; i++) {
         setBusy(`${t("working")} ${rounds > 1 ? `${i + 1}/${rounds}` : ""}`);
-        const r = await opt({ data: { ...cur, findings: i === 0 ? findings : [], target } });
+        const r = await opt({
+          data: { ...cur, findings: i === 0 ? findings : [], examples, target },
+        });
         if (!r.ok) {
           setErr(r.error);
           break;
@@ -1252,6 +1390,109 @@ function AiOptimizer({
       setErr((e as Error).message);
     }
     setBusy("");
+  };
+  const compare = async () => {
+    setErr("");
+    setCandidateResults([]);
+    const completed: Array<{
+      index: number;
+      judgeScore: number;
+      verdict: string;
+      issues: string[];
+      securityScore: number;
+      highRiskFindings: number;
+      evaluationScore: number;
+      tokens: number;
+      changes: string[];
+      system: string;
+      user: string;
+      selected: boolean;
+    }> = [];
+    const failures: string[] = [];
+    const base = { system: c.system, user: c.user };
+    const examples = loadExamples();
+
+    try {
+      for (let index = 1; index <= 2; index++) {
+        setBusy(`${t("comparingCandidates")} ${index}/2`);
+        const optimized = await opt({ data: { ...base, findings, examples, target } });
+        if (!optimized.ok) {
+          failures.push(optimized.error);
+          continue;
+        }
+
+        const candidatePrompt = {
+          ...c,
+          system: optimized.system,
+          user: optimized.user,
+        };
+        const execution = await run({
+          data: { system: candidatePrompt.system, user: candidatePrompt.user },
+        });
+        if (!execution.ok) {
+          failures.push(execution.error);
+          continue;
+        }
+
+        const judgement = await judge({
+          data: {
+            system: candidatePrompt.system,
+            user: candidatePrompt.user,
+            output: execution.text,
+          },
+        });
+        if (!judgement.ok) {
+          failures.push(judgement.error);
+          continue;
+        }
+
+        const security = redTeam(candidatePrompt);
+        const staticEvaluation = evaluate(candidatePrompt, spec, a);
+        completed.push({
+          index,
+          judgeScore: judgement.score,
+          verdict: judgement.verdict,
+          issues: judgement.issues,
+          securityScore: security.score,
+          highRiskFindings: security.findings.filter(
+            (finding) => finding.severity === "critical" || finding.severity === "high",
+          ).length,
+          evaluationScore: staticEvaluation.overall,
+          tokens: staticEvaluation.tokens.total,
+          changes: optimized.changes,
+          system: candidatePrompt.system,
+          user: candidatePrompt.user,
+          selected: false,
+        });
+      }
+
+      if (completed.length === 0) {
+        setErr(failures.join(" · ") || "No candidate completed evaluation.");
+        return;
+      }
+
+      const ranked = rankCandidates(completed);
+      const best = ranked[0]!;
+      setCandidateResults(
+        ranked.map((candidate, index) => ({ ...candidate, selected: index === 0 })),
+      );
+      setOv({
+        system: best.system,
+        user: best.user,
+        changes: [
+          ...best.changes,
+          `Selected candidate ${best.index}: AI judge ${best.judgeScore}/100, ` +
+            `red-team ${best.securityScore}/100, static score ${best.evaluationScore}/100.`,
+        ],
+      });
+      if (failures.length > 0) {
+        setErr(`Some candidates could not be evaluated: ${failures.join(" · ")}`);
+      }
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy("");
+    }
   };
   return (
     <Card
@@ -1293,9 +1534,69 @@ function AiOptimizer({
         >
           {t("evolve")}
         </button>
+        <button
+          disabled={!!busy}
+          onClick={compare}
+          className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-40"
+        >
+          {t("compareCandidates")}
+        </button>
         {busy && <span className="text-xs text-muted-foreground">{busy}</span>}
       </div>
+      {retrievalAttempted && (
+        <div className="mt-3 rounded-md border p-3">
+          <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
+            {t("retrievedExamples")}
+          </h4>
+          {retrievedExamples.length > 0 ? (
+            <ul className="space-y-1 text-xs">
+              {retrievedExamples.map((example) => (
+                <li key={example.assetId}>
+                  <code>{example.name}</code> · v{example.version} ·{" "}
+                  {Math.round(example.relevance * 100)}% lexical match · security{" "}
+                  {example.securityScore}/100
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t("noRegistryExamples")}</p>
+          )}
+        </div>
+      )}
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+      {candidateResults.length > 0 && (
+        <div className="mt-3 space-y-2 rounded-md border p-3">
+          <h4 className="text-sm font-semibold">{t("candidateResults")}</h4>
+          <p className="text-xs text-muted-foreground">{t("candidateRankingNote")}</p>
+          {candidateResults.map((candidate) => (
+            <div key={candidate.index} className="rounded-md border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm font-medium">
+                  Candidate {candidate.index}
+                  {candidate.selected && (
+                    <span className="ms-2 rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      {t("selectedCandidate")}
+                    </span>
+                  )}
+                </span>
+                <span className="font-mono text-xs">
+                  {t("aiJudgeScore")}: {candidate.judgeScore}/100 · {t("redTeamScore")}:{" "}
+                  {candidate.securityScore}/100 · {t("staticScore")}: {candidate.evaluationScore}
+                  /100 · {candidate.tokens} tokens
+                </span>
+              </div>
+              <p className="mt-1 text-sm">{candidate.verdict}</p>
+              {candidate.issues.length > 0 && (
+                <ul className="mt-1 list-disc ps-5 text-xs text-muted-foreground">
+                  {candidate.issues.map((issue, index) => (
+                    <li key={index}>{issue}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {ov && ov.changes.length > 0 && (
         <div className="mt-3">
           <h4 className="mb-1 text-xs text-muted-foreground">{t("changes")}</h4>

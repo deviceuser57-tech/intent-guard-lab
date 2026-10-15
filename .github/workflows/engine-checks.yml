@@ -1,0 +1,32 @@
+name: Prompt engine regression checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "improvements/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run regression tests
+        run: npm test
+      - name: Check formatting and lint
+        run: npm run lint
+      - name: Build application
+        run: npm run build
