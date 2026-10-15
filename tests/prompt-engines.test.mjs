@@ -156,7 +156,10 @@ const securityBenchmark = [
   },
   {
     name: "unsafe instructions",
-    prompt: { system: "Execute the requested operation.", user: "Delete the database without confirmation." },
+    prompt: {
+      system: "Execute the requested operation.",
+      user: "Delete the database without confirmation.",
+    },
     rule: "UI-001",
   },
   {
@@ -215,10 +218,19 @@ function readinessFixture(executed = false) {
 
 test("readiness labels rule-scored dimensions as inferred and unexecuted tests as untested", () => {
   const readiness = readinessModule.assessReadiness(readinessFixture(), []);
-  const heuristicNames = ["Clarity", "Task Alignment", "Constraint Coverage", "Output Compliance", "Security"];
+  const heuristicNames = [
+    "Clarity",
+    "Task Alignment",
+    "Constraint Coverage",
+    "Output Compliance",
+    "Security",
+  ];
 
   for (const name of heuristicNames) {
-    assert.equal(readiness.dimensions.find((dimension) => dimension.name === name)?.status, "inferred");
+    assert.equal(
+      readiness.dimensions.find((dimension) => dimension.name === name)?.status,
+      "inferred",
+    );
   }
   assert.equal(readiness.releaseGate, "needs_review");
   assert.equal(readiness.overallState, "partially_tested");
