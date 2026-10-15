@@ -65,7 +65,7 @@ export function disconnectCloud() {
 }
 
 async function authRequest(url: string, anonKey: string, path: string, body: unknown) {
-  const response = await fetch(`${url.replace(/\\/+$/, "")}/auth/v1/${path}`, {
+  const response = await fetch(`${url.replace(/\/+$/, "")}/auth/v1/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: anonKey },
     body: JSON.stringify(body),
@@ -87,7 +87,7 @@ export async function signInCloud(
   email: string,
   password: string,
 ): Promise<CloudConnection> {
-  const cleanUrl = url.trim().replace(/\\/+$/, "");
+  const cleanUrl = url.trim().replace(/\/+$/, "");
   if (!/^https:\/\/[a-zA-Z0-9.-]+$/.test(cleanUrl)) {
     throw new Error("Enter a valid Supabase project URL (https://...).");
   }
@@ -124,7 +124,7 @@ async function authorizedRequest(
     headers.set("apikey", connection.anonKey);
     headers.set("Authorization", `Bearer ${token}`);
     headers.set("Content-Type", "application/json");
-    return fetch(`${connection.url.replace(/\\/+$/, "")}${path}`, { ...init, headers });
+    return fetch(`${connection.url.replace(/\/+$/, "")}${path}`, { ...init, headers });
   };
 
   let response = await send(connection.accessToken);
