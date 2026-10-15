@@ -38,8 +38,9 @@ test("registry retrieval returns relevant published examples only", async () => 
   ];
 
   const results = registryModule.searchPublishedAssets(assets, "vessel maintenance inspection", "research", 3);
-  assert.deepEqual(results.map((result) => result.assetId), ["published-1"]);
+  assert.deepEqual(results.map((result) => result.assetId), ["published-1", "published-2"]);
   assert.equal(results[0].version, "1.0.0");
   assert.equal(results[0].relevance, 1);
+  assert.equal(results[1].relevance, 2 / 3);
   assert.deepEqual(results[0].matchedTerms, ["vessel", "maintenance", "inspection"]);
 });
