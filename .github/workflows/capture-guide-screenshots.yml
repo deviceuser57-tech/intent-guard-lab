@@ -1,4 +1,4 @@
-name: Capture real user-guide screenshots
+name: Capture real user-guide screenshots (dev server)
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
         run: npm run build
       - name: Start preview server
         run: |
-          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/preview.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/preview.log 2>&1 &
           for i in $(seq 1 60); do
             if curl --silent --fail http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
             sleep 2
