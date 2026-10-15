@@ -163,7 +163,15 @@ export function Workbench() {
   const [lang, setLang] = useState<Lang>("en");
   const t = useMemo(() => {
     const b = makeT(lang);
-    return (k: string) => L2[k]?.[lang] ?? b(k);
+    const fixedEnglishLabels = new Set([
+      "tabIntent", "tabSpec", "tabCompiled", "tabSecurity", "tabRegistry",
+      "taskType", "risk", "complexity", "confidence", "persona", "components",
+      "signals", "keywords", "goal", "audience", "tone", "constraints",
+      "outputFormat", "schema", "examples", "reasoning", "maxWords", "variables",
+      "system", "user", "contract", "archetype", "target",
+    ]);
+    return (k: string) =>
+      fixedEnglishLabels.has(k) ? makeT("en")(k) : L2[k]?.[lang] ?? b(k);
   }, [lang]);
   const [aiOv, setAiOv] = useState<{ system: string; user: string; changes: string[] } | null>(
     null,
@@ -221,23 +229,27 @@ export function Workbench() {
     setTab(mode === "quick" ? "compiled" : "intent");
   }, [input, override, mode]);
 
-  const tabs: Tab[] =
-    mode === "quick"
-      ? ["compiled", "security", "playground", "guardrails"]
-      : mode === "expert"
-        ? ["intent", "spec", "compiled", "security", "playground", "guardrails"]
-        : ["intent", "spec", "compiled", "security", "playground", "registry", "guardrails"];
+  // Core analysis and registry panels are available in every mode.
+  const tabs: Tab[] = [
+    "intent",
+    "spec",
+    "compiled",
+    "security",
+    "playground",
+    "registry",
+    "guardrails",
+  ];
   useEffect(() => {
     if (!tabs.includes(tab)) setTab("compiled");
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
   const tabLabel: Record<Tab, string> = {
-    intent: "tabIntent",
-    spec: "tabSpec",
-    compiled: "tabCompiled",
-    security: "tabSecurity",
-    playground: "tabPlayground",
-    registry: "tabRegistry",
-    guardrails: "guardrails",
+    intent: "Intent Analysis",
+    spec: "Specification",
+    compiled: "Compiled Prompts",
+    security: "Security / Validation",
+    playground: "Playground",
+    registry: "Prompt Registry",
+    guardrails: "Guardrails",
   };
 
   return (
@@ -327,7 +339,7 @@ export function Workbench() {
                 onClick={() => setTab(x)}
                 className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === x ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
               >
-                {t(tabLabel[x])}
+                {tabLabel[x]}
               </button>
             ))}
           </nav>
@@ -367,7 +379,10 @@ export function Workbench() {
               <CompiledPanel c={compiled} t={t} />
             </div>
           ) : tab === "playground" ? (
-            <Playground c={compiled} t={t} />
+            <div className="space-y-4">
+              <Playground c={compiled} t={t} />
+              {governance && <GovernancePanels result={governance} lang={lang} />}
+            </div>
           ) : (
             <SecurityPanel report={report} evalR={evalR} t={t} />
           )}
@@ -403,6 +418,31 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
   };
   return (
     <div className="space-y-4">
+      <Card
+        title="Decision Engine"
+        right={
+          <span className="rounded bg-secondary px-2 py-1 text-xs">
+            {result.decisions.length} {ar ? "قرار مكوّن" : "component decisions"}
+          </span>
+        }
+      >
+        <div className="space-y-2">
+          {result.decisions.map((decision) => (
+            <div
+              key={decision.component}
+              className="flex flex-wrap items-start justify-between gap-2 rounded-md border p-3"
+            >
+              <div className="min-w-0">
+                <code className="text-xs">{decision.component}</code>
+                <p className="mt-1 text-sm text-muted-foreground">{decision.reason}</p>
+              </div>
+              <span className="rounded bg-secondary px-2 py-1 text-xs uppercase">
+                {decision.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
       <Card
         title={ar ? "فحص الموجّه والسياسات" : "Prompt Linter & Policy Findings"}
         right={
