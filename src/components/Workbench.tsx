@@ -473,6 +473,74 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
   return (
     <div className="space-y-4">
       <Card
+        title={ar ? "اتساق محللات النية" : "Intent Analyzer Consistency"}
+        right={
+          <span className="rounded bg-secondary px-2 py-1 text-xs">
+            {result.analyzerAudit.consistent
+              ? ar
+                ? "متوافق"
+                : "CONSISTENT"
+              : ar
+                ? "اختلافات مكتشفة"
+                : `${result.analyzerAudit.differences.length} DIFFERENCE(S)`}
+          </span>
+        }
+      >
+        <p className="mb-3 text-sm text-muted-foreground">
+          {ar
+            ? "مقارنة تشخيصية بين المحلل القديم ومحرك القرار. الاختلافات ظاهرة للمراجعة ولا يتم إخفاؤها أو دمجها تلقائيًا."
+            : "Diagnostic comparison of the legacy analyzer and decision engine. Differences are surfaced for review, not silently merged."}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-md border p-3">
+            <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
+              {ar ? "المحلل القديم" : "Legacy Analyzer"}
+            </h4>
+            <p className="text-sm">
+              Task: <code>{result.analyzerAudit.legacy.taskType}</code>
+            </p>
+            <p className="text-sm">
+              Risk: <code>{result.analyzerAudit.legacy.riskLevel}</code>
+            </p>
+            <p className="text-sm">
+              Complexity: <code>{result.analyzerAudit.legacy.complexity}</code>
+            </p>
+          </div>
+          <div className="rounded-md border p-3">
+            <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
+              {ar ? "محرك القرار" : "Decision Engine"}
+            </h4>
+            <p className="text-sm">
+              Task: <code>{result.analyzerAudit.decision.taskType}</code>
+            </p>
+            <p className="text-sm">
+              Risk: <code>{result.analyzerAudit.decision.riskLevel}</code>
+            </p>
+            <p className="text-sm">
+              Complexity: <code>{result.analyzerAudit.decision.complexity}</code>
+            </p>
+          </div>
+        </div>
+        {result.analyzerAudit.differences.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {result.analyzerAudit.differences.map((difference) => (
+              <li key={difference.field} className="rounded-md border border-amber-500/30 p-3 text-sm">
+                <code>{difference.field}</code>:{" "}
+                <code>{difference.legacyValue}</code>
+                {difference.normalizedLegacyValue && (
+                  <>
+                    {" "}
+                    ({ar ? "بعد توحيد التصنيف" : "normalized"}:{" "}
+                    <code>{difference.normalizedLegacyValue}</code>)
+                  </>
+                )}{" "}
+                → <code>{difference.decisionValue}</code>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card
         title="Decision Engine"
         right={
           <span className="rounded bg-secondary px-2 py-1 text-xs">
