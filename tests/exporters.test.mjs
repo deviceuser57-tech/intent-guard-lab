@@ -10,7 +10,9 @@ test("provider exporters preserve existing adapters and validate Gemini payloads
   const output = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const exporters = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
+  const exporters = await import(
+    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`,
+  );
   const prompt = {
     system: "Act as a careful assistant.",
     user: "Summarize the supplied content.",
