@@ -14,9 +14,7 @@ page.setDefaultTimeout(15000);
 
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
-  const taskInput = page.locator(
-    'textarea[aria-label="Describe what you need the prompt to do"]',
-  );
+  const taskInput = page.locator('textarea[aria-label="Describe what you need the prompt to do"]');
   await taskInput.fill(
     "Create a TypeScript function to validate email addresses and include unit tests.",
   );
