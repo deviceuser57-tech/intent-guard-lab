@@ -15,7 +15,7 @@ Build the Enterprise Prompt Engineering Workbench web app based on the Prompts r
 3. Workspace UI & Modes:
 - 3 operating modes: Quick Mode (streamlined prompt generation), Expert Mode (full specification controls and component tuning), and Enterprise Mode (registry, versioning, governance, and security audits).
 - Tabbed panels: Intent Analysis, Specification, Compiled Prompts, Security/Validation, and Prompt Registry.
-- Multi-provider exports: Dedicated export formats and payload validators for OpenAI (chat completions system/user messages) and Anthropic (Messages API format with system and user messages), plus copy-to-clipboard and raw text.
+- Model integrations: Configurable OpenAI (including o1/o3), Anthropic Claude, Gemini, DeepSeek-R1, and custom OpenAI-compatible endpoints. API keys are kept in memory and are not persisted in localStorage; model IDs and endpoint metadata can be remembered locally.\n- Model-specific prompt adapters and few-shot retrieval: Provider-aware prompt boundaries, embedding-based example ranking where supported, and lexical fallback.\n- Iterative optimization: Generate and evaluate five prompt candidates using model judging, static evaluation, and red-team findings. This is DSPy-inspired candidate search, not the DSPy library itself.\n- Cloud registry: Optional Supabase persistence with per-user RLS and shared workspace snapshots/invitations. Requires the SQL migration in `docs/supabase-cloud-storage.sql`; shared snapshots are not real-time co-editing.
 - Manual archetype override control alongside automated classification.
 - Full bilingual English and Arabic support (i18n).
 
