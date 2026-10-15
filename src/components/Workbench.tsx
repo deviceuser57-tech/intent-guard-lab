@@ -1338,7 +1338,9 @@ function AiOptimizer({
   const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning">("openai");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
-  const [retrievedExamples, setRetrievedExamples] = useState<ReturnType<typeof registry.searchPublished>>([]);
+  const [retrievedExamples, setRetrievedExamples] = useState<
+    ReturnType<typeof registry.searchPublished>
+  >([]);
   const [retrievalAttempted, setRetrievalAttempted] = useState(false);
   const [candidateResults, setCandidateResults] = useState<
     Array<{
@@ -1370,7 +1372,9 @@ function AiOptimizer({
     try {
       for (let i = 0; i < rounds; i++) {
         setBusy(`${t("working")} ${rounds > 1 ? `${i + 1}/${rounds}` : ""}`);
-        const r = await opt({ data: { ...cur, findings: i === 0 ? findings : [], examples, target } });
+        const r = await opt({
+          data: { ...cur, findings: i === 0 ? findings : [], examples, target },
+        });
         if (!r.ok) {
           setErr(r.error);
           break;
@@ -1474,7 +1478,8 @@ function AiOptimizer({
         user: best.user,
         changes: [
           ...best.changes,
-          `Selected candidate ${best.index}: AI judge ${best.judgeScore}/100, red-team ${best.securityScore}/100, static score ${best.evaluationScore}/100.`,
+          `Selected candidate ${best.index}: AI judge ${best.judgeScore}/100, ` +
+            `red-team ${best.securityScore}/100, static score ${best.evaluationScore}/100.`,
         ],
       });
       if (failures.length > 0) {
