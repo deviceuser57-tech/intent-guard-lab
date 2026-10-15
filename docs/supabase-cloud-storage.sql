@@ -129,10 +129,10 @@ begin
   if member_role <> 'editor' then raise exception 'Only editor invitations are supported'; end if;
   select id into invited_user_id from auth.users where lower(email) = lower(trim(member_email)) limit 1;
   if invited_user_id is null then raise exception 'User must create a Supabase account before being invited'; end if;
-  insert into public.intent_guard_workspace_members(workspace_id, user_id, role)
+  insert into public.intent_guard_workspace_members as existing(workspace_id, user_id, role)
     values (target_workspace, invited_user_id, 'editor')
     on conflict (workspace_id, user_id) do update set role = 'editor'
-    where public.intent_guard_workspace_members.role <> 'owner';
+    where existing.role <> 'owner';
 end;
 $$;
 
