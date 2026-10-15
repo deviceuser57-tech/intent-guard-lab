@@ -49,7 +49,7 @@ export function CloudStoragePanel({ lang }: { lang: "ar" | "en" }) {
     return () => {
       active = false;
     };
-  }, [connection?.userId]);
+  }, [connection]);
 
   const connect = async () => {
     setBusy(true);
@@ -219,6 +219,13 @@ export function CloudStoragePanel({ lang }: { lang: "ar" | "en" }) {
               onClick={syncNow}
             >
               {ar ? "مزامنة الآن" : "Sync now"}
+            </button>
+            <button
+              className="rounded-md border px-4 py-2 text-sm disabled:opacity-50"
+              disabled={busy}
+              onClick={() => void activateWorkspace(selectedWorkspace)}
+            >
+              {ar ? "تحميل نسخة السحابة" : "Load cloud snapshot"}
             </button>
             <button
               className="rounded-md border px-4 py-2 text-sm"
