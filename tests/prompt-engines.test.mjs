@@ -119,7 +119,12 @@ test("evaluation metrics and token totals remain internally consistent", () => {
 
   assert.equal(report.tokens.total, report.tokens.system + report.tokens.user);
   assert.equal(report.tests.length, 5);
-  assert.equal(report.overall, Math.round(report.metrics.reduce((sum, metric) => sum + metric.value, 0) / report.metrics.length));
+  assert.equal(
+    report.overall,
+    Math.round(
+      report.metrics.reduce((sum, metric) => sum + metric.value, 0) / report.metrics.length,
+    ),
+  );
   assert.deepEqual(metricKeys, [
     "correctness",
     "coverage",
