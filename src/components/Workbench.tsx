@@ -100,7 +100,8 @@ const ALL_COMPONENTS: Component[] = [
   "tools",
   "evaluation_rubric",
 ];
-type Tab = "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails" | "help";
+type Tab =
+  "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails" | "help";
 
 const riskTone: Record<"low" | "medium" | "high" | "critical", string> = {
   low: "bg-success/15 text-success",
@@ -122,9 +123,7 @@ function Card({
     <section className="workbench-panel rounded-lg border bg-card p-6">
       {title && (
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="text-lg font-semibold text-primary">
-            {title}
-          </h3>
+          <h3 className="text-lg font-semibold text-primary">{title}</h3>
           {right}
         </div>
       )}
@@ -286,29 +285,33 @@ export function Workbench() {
           <div className="workbench-header-tools flex flex-wrap items-center justify-between gap-3">
             <FileCode2 className="h-10 w-10" aria-hidden="true" />
             <div className="flex flex-wrap items-center gap-2">
-            <div className="workbench-modes flex rounded-md border p-0.5">
-              {(["quick", "expert", "enterprise"] as Mode[]).map((m) => (
-                <Button variant="ghost"
-                  key={m}
-                  onClick={() => setMode(m)}
-                  aria-pressed={mode === m}
-                  className={`rounded px-3 py-1.5 text-sm ${mode === m ? "workbench-mode-active" : "workbench-mode"}`}
-                >
-                  {t(m)}
-                </Button>
-              ))}
-            </div>
-            <Button variant="ghost"
-              onClick={() => setLang(lang === "en" ? "ar" : "en")}
-              className="workbench-language rounded-md border px-3 py-1.5 text-sm"
-            >
-              <Globe2 aria-hidden="true" />
-              {t("lang")}
-            </Button>
+              <div className="workbench-modes flex rounded-md border p-0.5">
+                {(["quick", "expert", "enterprise"] as Mode[]).map((m) => (
+                  <Button
+                    variant="ghost"
+                    key={m}
+                    onClick={() => setMode(m)}
+                    aria-pressed={mode === m}
+                    className={`rounded px-3 py-1.5 text-sm ${mode === m ? "workbench-mode-active" : "workbench-mode"}`}
+                  >
+                    {t(m)}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() => setLang(lang === "en" ? "ar" : "en")}
+                className="workbench-language rounded-md border px-3 py-1.5 text-sm"
+              >
+                <Globe2 aria-hidden="true" />
+                {t("lang")}
+              </Button>
             </div>
           </div>
           <div className="workbench-brand mx-auto text-center">
-            <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl">{t("appTitle")}</h1>
+            <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl">
+              {t("appTitle")}
+            </h1>
             <p className="mt-4 text-lg font-medium">{t("appSub")}</p>
           </div>
         </div>
@@ -317,7 +320,9 @@ export function Workbench() {
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <section className="workbench-request mb-10">
           <div className="mb-6 text-center">
-            <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">{t("describe")}</h2>
+            <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">
+              {t("describe")}
+            </h2>
           </div>
           <div className="grid gap-5 md:grid-cols-[1fr_280px]">
             <textarea
@@ -329,28 +334,30 @@ export function Workbench() {
               className={`${inputCls} workbench-task resize-y`}
             />
             <div className="flex flex-col justify-end">
-            <label htmlFor="archetype-choice" className="mb-2 block text-sm font-semibold">{t("archetype")}</label>
-            <select
-              id="archetype-choice"
-              value={override}
-              onChange={(e) => setOverride(e.target.value as Archetype | "")}
-              className={inputCls}
-            >
-              <option value="">{t("auto")}</option>
-              {ARCHS.map((a) => (
-                <option key={a} value={a}>
-                  {t(a)}
-                </option>
-              ))}
-            </select>
-            <Button
-              onClick={run}
-              disabled={!input.trim()}
-              className="mt-4 h-12 w-full whitespace-normal rounded-md text-sm font-semibold"
-            >
-              {t("generate")}
-              <ArrowRight className="rtl:rotate-180" aria-hidden="true" />
-            </Button>
+              <label htmlFor="archetype-choice" className="mb-2 block text-sm font-semibold">
+                {t("archetype")}
+              </label>
+              <select
+                id="archetype-choice"
+                value={override}
+                onChange={(e) => setOverride(e.target.value as Archetype | "")}
+                className={inputCls}
+              >
+                <option value="">{t("auto")}</option>
+                {ARCHS.map((a) => (
+                  <option key={a} value={a}>
+                    {t(a)}
+                  </option>
+                ))}
+              </select>
+              <Button
+                onClick={run}
+                disabled={!input.trim()}
+                className="mt-4 h-12 w-full whitespace-normal rounded-md text-sm font-semibold"
+              >
+                {t("generate")}
+                <ArrowRight className="rtl:rotate-180" aria-hidden="true" />
+              </Button>
             </div>
           </div>
           {analysis && report && evalR && (
@@ -368,11 +375,14 @@ export function Workbench() {
 
         <section className="min-w-0">
           <div className="mb-6 text-center">
-            <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">{tabLabel[tab]}</h2>
+            <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">
+              {tabLabel[tab]}
+            </h2>
           </div>
           <nav aria-label="Workbench" className="workbench-tabs flex flex-wrap gap-1 border-b">
             {tabs.map((x, i) => (
-              <Button variant="ghost"
+              <Button
+                variant="ghost"
                 key={x}
                 onClick={() => setTab(x)}
                 aria-current={tab === x ? "page" : undefined}
@@ -383,52 +393,52 @@ export function Workbench() {
             ))}
           </nav>
           <div className={`workbench-content workbench-content-${tab} py-6`}>
-          {tab === "help" ? (
-            <HelpUserGuide lang={lang} />
-          ) : tab === "registry" ? (
-            <RegistryPanel
-              t={t}
-              compiled={compiled}
-              score={report?.score ?? 0}
-              archetype={analysis?.archetype ?? "general"}
-            />
-          ) : tab === "guardrails" ? (
-            <GuardrailConsole
-              input={input}
-              findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []}
-              {...(analysis ? { risk: analysis.risk } : {})}
-              {...(evalR ? { evaluationScore: evalR.overall } : {})}
-              {...(compiled ? { systemPrompt: compiled.system, userPrompt: compiled.user } : {})}
-            />
-          ) : !analysis || !spec || !compiled || !report || !evalR ? (
-            <div className="workbench-empty flex min-h-40 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
-              <FileCode2 className="h-10 w-10 text-primary" aria-hidden="true" />
-              {t("emptyState")}
-            </div>
-          ) : tab === "intent" ? (
-            <IntentPanel a={analysis} t={t} />
-          ) : tab === "spec" ? (
-            <SpecPanel spec={spec} setSpec={setSpec} t={t} />
-          ) : tab === "compiled" ? (
-            <div className="space-y-4">
-              {governance && <GovernancePanels result={governance} lang={lang} />}
-              <AiOptimizer
-                c={compiled}
-                findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)}
-                ov={aiOv}
-                setOv={setAiOv}
+            {tab === "help" ? (
+              <HelpUserGuide lang={lang} />
+            ) : tab === "registry" ? (
+              <RegistryPanel
                 t={t}
+                compiled={compiled}
+                score={report?.score ?? 0}
+                archetype={analysis?.archetype ?? "general"}
               />
-              <CompiledPanel c={compiled} t={t} />
-            </div>
-          ) : tab === "playground" ? (
-            <div className="space-y-4">
-              <Playground c={compiled} t={t} />
-              {governance && <GovernancePanels result={governance} lang={lang} />}
-            </div>
-          ) : (
-            <SecurityPanel report={report} evalR={evalR} t={t} />
-          )}
+            ) : tab === "guardrails" ? (
+              <GuardrailConsole
+                input={input}
+                findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []}
+                {...(analysis ? { risk: analysis.risk } : {})}
+                {...(evalR ? { evaluationScore: evalR.overall } : {})}
+                {...(compiled ? { systemPrompt: compiled.system, userPrompt: compiled.user } : {})}
+              />
+            ) : !analysis || !spec || !compiled || !report || !evalR ? (
+              <div className="workbench-empty flex min-h-40 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
+                <FileCode2 className="h-10 w-10 text-primary" aria-hidden="true" />
+                {t("emptyState")}
+              </div>
+            ) : tab === "intent" ? (
+              <IntentPanel a={analysis} t={t} />
+            ) : tab === "spec" ? (
+              <SpecPanel spec={spec} setSpec={setSpec} t={t} />
+            ) : tab === "compiled" ? (
+              <div className="space-y-4">
+                {governance && <GovernancePanels result={governance} lang={lang} />}
+                <AiOptimizer
+                  c={compiled}
+                  findings={report.findings.map((f) => `${f.rule}: ${f.detail}`)}
+                  ov={aiOv}
+                  setOv={setAiOv}
+                  t={t}
+                />
+                <CompiledPanel c={compiled} t={t} />
+              </div>
+            ) : tab === "playground" ? (
+              <div className="space-y-4">
+                <Playground c={compiled} t={t} />
+                {governance && <GovernancePanels result={governance} lang={lang} />}
+              </div>
+            ) : (
+              <SecurityPanel report={report} evalR={evalR} t={t} />
+            )}
           </div>
         </section>
       </main>
