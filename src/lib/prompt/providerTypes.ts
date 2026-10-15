@@ -19,7 +19,10 @@ export const DEFAULT_MODEL_PROVIDER_CONFIG: ModelProviderConfig = {
 export const providerDefaults: Record<ModelProvider, { baseUrl: string; model: string }> = {
   openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini" },
   anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-3-7-sonnet-latest" },
-  gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-2.5-flash" },
+  gemini: {
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    model: "gemini-2.5-flash",
+  },
   deepseek: { baseUrl: "https://api.deepseek.com/v1", model: "deepseek-reasoner" },
   "openai-compatible": { baseUrl: "", model: "" },
 };

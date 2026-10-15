@@ -35,7 +35,11 @@ import { optimizePrompt, runPrompt, judgeOutput, embedTexts } from "@/lib/ai.fun
 import { GuardrailConsole } from "@/components/GuardrailConsole";
 import { ModelSettings } from "@/components/ModelSettings";
 import { CloudStoragePanel } from "@/components/CloudStoragePanel";
-import { DEFAULT_MODEL_PROVIDER_CONFIG, safePersistedConfig, type ModelProviderConfig } from "@/lib/prompt/providerTypes";
+import {
+  DEFAULT_MODEL_PROVIDER_CONFIG,
+  safePersistedConfig,
+  type ModelProviderConfig,
+} from "@/lib/prompt/providerTypes";
 import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdapters";
 import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
@@ -131,7 +135,15 @@ const ALL_COMPONENTS: Component[] = [
   "evaluation_rubric",
 ];
 type Tab =
-  | "intent" | "spec" | "compiled" | "security" | "playground" | "registry" | "guardrails" | "help" | "models";
+  | "intent"
+  | "spec"
+  | "compiled"
+  | "security"
+  | "playground"
+  | "registry"
+  | "guardrails"
+  | "help"
+  | "models";
 
 const riskTone: Record<"low" | "medium" | "high" | "critical", string> = {
   low: "bg-success/15 text-success",
@@ -236,11 +248,19 @@ export function Workbench() {
     try {
       const saved = localStorage.getItem("intent-guard.model-settings.v1");
       return { ...DEFAULT_MODEL_PROVIDER_CONFIG, ...(saved ? JSON.parse(saved) : {}), apiKey: "" };
-    } catch { return { ...DEFAULT_MODEL_PROVIDER_CONFIG }; }
+    } catch {
+      return { ...DEFAULT_MODEL_PROVIDER_CONFIG };
+    }
   });
   useEffect(() => {
-    try { localStorage.setItem("intent-guard.model-settings.v1", JSON.stringify(safePersistedConfig(providerConfig))); }
-    catch { /* Settings metadata is optional; never persist the API key. */ }
+    try {
+      localStorage.setItem(
+        "intent-guard.model-settings.v1",
+        JSON.stringify(safePersistedConfig(providerConfig)),
+      );
+    } catch {
+      /* Settings metadata is optional; never persist the API key. */
+    }
   }, [providerConfig.provider, providerConfig.model, providerConfig.baseUrl]);
   const [tab, setTab] = useState<Tab>("compiled");
   const [input, setInput] = useState("");
@@ -537,7 +557,11 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
           </span>
         }
       >
-        <p className="mb-3 text-sm text-muted-foreground">{ar ? "يكشف هذا الفحص الاختلافات بين محلل النية القديم ومحرك القرار؛ ولا يقوم بتسويتها بصمت." : "This audit surfaces differences between the legacy intent analyzer and the decision engine without silently reconciling them."}</p>
+        <p className="mb-3 text-sm text-muted-foreground">
+          {ar
+            ? "يكشف هذا الفحص الاختلافات بين محلل النية القديم ومحرك القرار؛ ولا يقوم بتسويتها بصمت."
+            : "This audit surfaces differences between the legacy intent analyzer and the decision engine without silently reconciling them."}
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-md border p-3">
             <h4 className="mb-2 text-xs font-semibold text-muted-foreground">
@@ -1006,21 +1030,37 @@ const CompiledPanel = memo(function CompiledPanel({
   t: (k: string) => string;
   providerConfig: ModelProviderConfig;
 }) {
-  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "gemini" | "deepseek" | "openai-compatible" | "raw">("split");
+  const [prov, setProv] = useState<
+    "split" | "openai" | "anthropic" | "gemini" | "deepseek" | "openai-compatible" | "raw"
+  >("split");
   const family: ProviderFamily =
-    prov === "anthropic" ? "anthropic" :
-    prov === "gemini" ? "gemini" :
-    prov === "deepseek" ? "deepseek" :
-    prov === "openai-compatible" ? "openai-compatible" : "openai";
-  const model = prov === "anthropic"
-    ? (providerConfig.provider === "anthropic" ? providerConfig.model : "claude-3-7-sonnet-latest")
-    : prov === "gemini"
-      ? (providerConfig.provider === "gemini" ? providerConfig.model : "gemini-2.5-flash")
-      : prov === "deepseek"
-        ? (providerConfig.provider === "deepseek" ? providerConfig.model : "deepseek-reasoner")
-        : prov === "openai-compatible"
+    prov === "anthropic"
+      ? "anthropic"
+      : prov === "gemini"
+        ? "gemini"
+        : prov === "deepseek"
+          ? "deepseek"
+          : prov === "openai-compatible"
+            ? "openai-compatible"
+            : "openai";
+  const model =
+    prov === "anthropic"
+      ? providerConfig.provider === "anthropic"
+        ? providerConfig.model
+        : "claude-3-7-sonnet-latest"
+      : prov === "gemini"
+        ? providerConfig.provider === "gemini"
           ? providerConfig.model
-          : (providerConfig.provider === "openai" ? providerConfig.model : "gpt-4.1-mini");
+          : "gemini-2.5-flash"
+        : prov === "deepseek"
+          ? providerConfig.provider === "deepseek"
+            ? providerConfig.model
+            : "deepseek-reasoner"
+          : prov === "openai-compatible"
+            ? providerConfig.model
+            : providerConfig.provider === "openai"
+              ? providerConfig.model
+              : "gpt-4.1-mini";
   const adapted = adaptPromptForModel(c, { provider: family, model });
   const exportPrompt = { ...c, system: adapted.system, user: adapted.user };
   const oa = toOpenAI(exportPrompt, model),
@@ -1043,14 +1083,42 @@ const CompiledPanel = memo(function CompiledPanel({
         : prov === "gemini"
           ? JSON.stringify(ge, null, 2)
           : prov === "deepseek"
-            ? JSON.stringify({ endpoint: `${providerConfig.provider === "deepseek" && customEndpoint ? customEndpoint : "https://api.deepseek.com/v1"}/chat/completions`, method: "POST", headers: { Authorization: "Bearer <API_KEY>" }, body: oa }, null, 2)
+            ? JSON.stringify(
+                {
+                  endpoint: `${providerConfig.provider === "deepseek" && customEndpoint ? customEndpoint : "https://api.deepseek.com/v1"}/chat/completions`,
+                  method: "POST",
+                  headers: { Authorization: "Bearer <API_KEY>" },
+                  body: oa,
+                },
+                null,
+                2,
+              )
             : prov === "openai-compatible"
-              ? JSON.stringify({ endpoint: `${customEndpoint}/chat/completions`, method: "POST", headers: { Authorization: "Bearer <API_KEY>" }, body: oa }, null, 2)
+              ? JSON.stringify(
+                  {
+                    endpoint: `${customEndpoint}/chat/completions`,
+                    method: "POST",
+                    headers: { Authorization: "Bearer <API_KEY>" },
+                    body: oa,
+                  },
+                  null,
+                  2,
+                )
               : toRaw(c);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1">
-        {(["split", "openai", "anthropic", "gemini", "deepseek", "openai-compatible", "raw"] as const).map((p) => (
+        {(
+          [
+            "split",
+            "openai",
+            "anthropic",
+            "gemini",
+            "deepseek",
+            "openai-compatible",
+            "raw",
+          ] as const
+        ).map((p) => (
           <button
             key={p}
             onClick={() => setProv(p)}
@@ -1387,7 +1455,9 @@ function AiOptimizer({
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
   const embed = useServerFn(embedTexts);
-  const [target, setTarget] = useState<"openai" | "anthropic" | "reasoning" | "gemini" | "deepseek" | "openai-compatible">(
+  const [target, setTarget] = useState<
+    "openai" | "anthropic" | "reasoning" | "gemini" | "deepseek" | "openai-compatible"
+  >(
     providerConfig.provider === "openai-compatible" ? "openai-compatible" : providerConfig.provider,
   );
   const [busy, setBusy] = useState("");
@@ -1422,7 +1492,12 @@ function AiOptimizer({
         const embedded = await embed({
           data: {
             providerConfig,
-            texts: [query, ...candidates.map((item) => `${item.name}\n${item.system}\n${item.user}`.slice(0, 12000))],
+            texts: [
+              query,
+              ...candidates.map((item) =>
+                `${item.name}\n${item.system}\n${item.user}`.slice(0, 12000),
+              ),
+            ],
           },
         });
         if (embedded.ok && embedded.vectors.length === candidates.length + 1) {
@@ -1433,11 +1508,17 @@ function AiOptimizer({
             return a && b ? dot / (a * b) : 0;
           };
           const queryVector = embedded.vectors[0]!;
-          examples = candidates.map((item, index) => ({
-            ...item,
-            relevance: cosine(queryVector, embedded.vectors[index + 1]!),
-            matchedTerms: [],
-          })).sort((left, right) => right.relevance - left.relevance || right.securityScore - left.securityScore).slice(0, 3);
+          examples = candidates
+            .map((item, index) => ({
+              ...item,
+              relevance: cosine(queryVector, embedded.vectors[index + 1]!),
+              matchedTerms: [],
+            }))
+            .sort(
+              (left, right) =>
+                right.relevance - left.relevance || right.securityScore - left.securityScore,
+            )
+            .slice(0, 3);
         }
       } catch {
         // Embedding failure is non-fatal; lexical retrieval remains available.
@@ -1450,8 +1531,17 @@ function AiOptimizer({
   const go = async (rounds: number) => {
     const examples = await loadExamples();
     setErr("");
-    const family = (target === "reasoning" ? (providerConfig.provider === "deepseek" ? "deepseek" : "openai") : target) as ProviderFamily;
-    const adapted = adaptPromptForModel({ system: c.system, user: c.user }, { provider: family, model: providerConfig.model });
+    const family = (
+      target === "reasoning"
+        ? providerConfig.provider === "deepseek"
+          ? "deepseek"
+          : "openai"
+        : target
+    ) as ProviderFamily;
+    const adapted = adaptPromptForModel(
+      { system: c.system, user: c.user },
+      { provider: family, model: providerConfig.model },
+    );
     let cur = { system: adapted.system, user: adapted.user };
     const all: string[] = [];
     try {
@@ -1495,11 +1585,22 @@ function AiOptimizer({
     const examples = await loadExamples();
 
     try {
-      const family = (target === "reasoning" ? (providerConfig.provider === "deepseek" ? "deepseek" : "openai") : target) as ProviderFamily;
-      const adaptedBase = adaptPromptForModel(base, { provider: family, model: providerConfig.model });
+      const family = (
+        target === "reasoning"
+          ? providerConfig.provider === "deepseek"
+            ? "deepseek"
+            : "openai"
+          : target
+      ) as ProviderFamily;
+      const adaptedBase = adaptPromptForModel(base, {
+        provider: family,
+        model: providerConfig.model,
+      });
       for (let index = 1; index <= 5; index++) {
         setBusy(`${t("comparingCandidates")} ${index}/5`);
-        const optimized = await opt({ data: { ...adaptedBase, findings, examples, target, providerConfig } });
+        const optimized = await opt({
+          data: { ...adaptedBase, findings, examples, target, providerConfig },
+        });
         if (!optimized.ok) {
           failures.push(optimized.error);
           continue;
