@@ -12,8 +12,7 @@ const valid = JSON.stringify({
   rules: [{ id: "no-token", term: "secret token", action: "block" }],
 });
 
-test("accepts a valid JSON policy", () =>
-  assert.equal(validatePolicyContent("json", valid), null));
+test("accepts a valid JSON policy", () => assert.equal(validatePolicyContent("json", valid), null));
 test("rejects malformed JSON and non-object roots", () => {
   assert.match(validatePolicyContent("json", "{oops"), /JSON|position|property/i);
   assert.match(validatePolicyContent("json", "[]"), /root must be an object/i);
