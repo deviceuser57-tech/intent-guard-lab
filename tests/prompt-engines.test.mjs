@@ -254,7 +254,7 @@ test("readiness uses inferred and measured evidence without dropping inferred sc
   }
   assert.equal(readiness.releaseGate, "ready");
   assert.equal(readiness.overallState, "ready_for_release");
-}
+});
 
 test("evaluation metrics and token totals remain internally consistent", () => {
   const prompt = {
