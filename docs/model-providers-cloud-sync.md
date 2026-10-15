@@ -21,6 +21,7 @@ The candidate search generates and evaluates five candidates. Ranking prioritize
 1. Create a Supabase project and enable Email/Password authentication.
 2. Run [supabase-cloud-storage.sql](./supabase-cloud-storage.sql) in the Supabase SQL Editor.
 3. In the app's Models tab, enter the project URL, anon/publishable key, and the user's email/password.
-4. Connect. The app imports the existing cloud snapshot or uploads the local snapshot on first connection. Registry changes then trigger best-effort background saves; **Sync now** forces an upload.
+4. Connect. The app imports the existing personal cloud snapshot or uploads the local snapshot on first connection. Registry changes then trigger best-effort background saves; **Sync now** forces an upload.
+5. Create a workspace to share a single registry snapshot, then invite editors by email. Invitees must already have Supabase Auth accounts. Select a workspace to load its snapshot; use **Load cloud snapshot** to refresh it explicitly.
 
-The SQL policy scopes each registry snapshot to the authenticated user. The app stores the active session in sessionStorage, not localStorage, and never stores the password. Local storage remains the fallback when cloud sync is disconnected or unavailable. This is per-user persistence, not real-time team collaboration; shared workspaces, team roles, and conflict resolution are not implemented.
+The SQL policies scope personal snapshots to the authenticated user and shared snapshots to workspace members. The app stores the active session in sessionStorage, not localStorage, and never stores the password. Local storage remains the fallback when cloud sync is disconnected or unavailable. Workspace snapshots use last-successful-write-wins; this is not real-time co-editing, and simultaneous edits can overwrite each other.
