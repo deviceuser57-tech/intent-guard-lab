@@ -19,12 +19,12 @@ const guideSections = {
       { n: "06", title: "Validate and save", body: "Review Security / Validation and Guardrails. Use Prompt Registry to save a named asset and track versions. Local browser storage is not an enterprise backup." },
     ],
     visualsTitle: "Screen-by-screen map",
-    visualsIntro: "These are in-app navigation cues for the current interface, not captured screenshots. Actual screenshots should be added after capturing the running application.",
+    visualsIntro: "Captured screenshots from the running application. Select each image to inspect the relevant screen."
     visualCards: [
-      { label: "START HERE", title: "Task input", desc: "Description → Archetype → Generate prompt" },
-      { label: "UNDERSTAND", title: "Intent Analysis", desc: "Task type · Risk · Confidence · Signals" },
-      { label: "SHAPE", title: "Specification", desc: "Goal · Audience · Tone · Constraints · Output format" },
-      { label: "REVIEW", title: "Playground", desc: "Decision Engine · Prompt Linter · Readiness" },
+      { label: "START HERE", title: "Task input", desc: "Description → Archetype → Generate prompt", src: "/guide-screenshots/01-task-input.png" },
+      { label: "UNDERSTAND", title: "Intent Analysis", desc: "Task type · Risk · Confidence · Signals", src: "/guide-screenshots/02-intent-analysis.png" },
+      { label: "SHAPE", title: "Specification", desc: "Goal · Audience · Tone · Constraints · Output format", src: "/guide-screenshots/03-specification.png" },
+      { label: "REVIEW", title: "Playground", desc: "Decision Engine · Prompt Linter · Readiness", src: "/guide-screenshots/04-playground.png" },
     ],
     checklistTitle: "Before using a prompt",
     checklist: [
@@ -59,12 +59,12 @@ const guideSections = {
       { n: "06", title: "تحقق واحفظ", body: "راجع Security / Validation وGuardrails. استخدم Prompt Registry لحفظ الأصل باسمه ومتابعة إصداراته. التخزين المحلي في المتصفح ليس نسخة احتياطية مؤسسية." },
     ],
     visualsTitle: "خريطة التنقل بين الشاشات",
-    visualsIntro: "هذه إرشادات مرئية للتنقل داخل الواجهة الحالية وليست لقطات شاشة ملتقطة. يجب إضافة لقطات فعلية بعد التقاط التطبيق أثناء تشغيله.",
+    visualsIntro: "لقطات شاشة فعلية من التطبيق أثناء تشغيله. افتح كل صورة لمعاينة الشاشة المرتبطة بالخطوة."
     visualCards: [
-      { label: "ابدأ هنا", title: "Task input", desc: "Description → Archetype → Generate prompt" },
-      { label: "افهم الطلب", title: "Intent Analysis", desc: "Task type · Risk · Confidence · Signals" },
-      { label: "اضبط المواصفات", title: "Specification", desc: "Goal · Audience · Tone · Constraints · Output format" },
-      { label: "راجع النتائج", title: "Playground", desc: "Decision Engine · Prompt Linter · Readiness" },
+      { label: "ابدأ هنا", title: "Task input", desc: "Description → Archetype → Generate prompt", src: "/guide-screenshots/01-task-input.png" },
+      { label: "افهم الطلب", title: "Intent Analysis", desc: "Task type · Risk · Confidence · Signals", src: "/guide-screenshots/02-intent-analysis.png" },
+      { label: "اضبط المواصفات", title: "Specification", desc: "Goal · Audience · Tone · Constraints · Output format", src: "/guide-screenshots/03-specification.png" },
+      { label: "راجع النتائج", title: "Playground", desc: "Decision Engine · Prompt Linter · Readiness", src: "/guide-screenshots/04-playground.png" },
     ],
     checklistTitle: "قائمة المراجعة قبل الاستخدام",
     checklist: [
@@ -149,17 +149,10 @@ export function HelpUserGuide({ lang }: Props) {
                 <span className="text-[10px] font-bold tracking-wider text-muted-foreground">{card.label}</span>
                 <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
               </div>
-              <div className="space-y-3 p-4">
-                <div className="flex gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-primary/70" />
-                  <span className="h-2 w-2 rounded-full bg-primary/30" />
-                  <span className="h-2 w-2 rounded-full bg-primary/15" />
-                </div>
-                <div className="rounded-md border bg-background p-3">
-                  <div className="mb-2 h-2 w-2/3 rounded bg-muted-foreground/25" />
-                  <div className="h-2 w-full rounded bg-muted-foreground/15" />
-                  <div className="mt-2 h-2 w-4/5 rounded bg-muted-foreground/15" />
-                </div>
+              <a href={card.src} target="_blank" rel="noreferrer" className="block bg-muted/40">
+                <img src={card.src} alt={card.title} loading="lazy" className="aspect-video w-full object-cover object-top" />
+              </a>
+              <div className="space-y-2 p-4">
                 <h4 className="font-semibold">{card.title}</h4>
                 <p className="text-xs leading-5 text-muted-foreground">{card.desc}</p>
               </div>
