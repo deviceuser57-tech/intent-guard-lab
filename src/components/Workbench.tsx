@@ -552,8 +552,7 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
                 key={difference.field}
                 className="rounded-md border border-amber-500/30 p-3 text-sm"
               >
-                <code>{difference.field}</code>:{" "}
-                <code>{difference.legacyValue}</code>
+                <code>{difference.field}</code>: <code>{difference.legacyValue}</code>
                 {difference.normalizedLegacyValue && (
                   <>
                     {" "}
@@ -1582,8 +1581,8 @@ function AiOptimizer({
                 </span>
                 <span className="font-mono text-xs">
                   {t("aiJudgeScore")}: {candidate.judgeScore}/100 · {t("redTeamScore")}:{" "}
-                  {candidate.securityScore}/100 · {t("staticScore")}: {candidate.evaluationScore}/100 ·{" "}
-                  {candidate.tokens} tokens
+                  {candidate.securityScore}/100 · {t("staticScore")}: {candidate.evaluationScore}
+                  /100 · {candidate.tokens} tokens
                 </span>
               </div>
               <p className="mt-1 text-sm">{candidate.verdict}</p>
