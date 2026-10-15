@@ -219,7 +219,7 @@ export const embedTexts = createServerFn({ method: "POST" })
     try {
       let response: Response;
       if (provider === "gemini") {
-        const base = (baseUrl || "https://generativelanguage.googleapis.com/v1beta").replace(/\/+$/, "");
+        const base = providerUrl(data.providerConfig);
         const vectors = [];
         for (const text of data.texts) {
           response = await fetch(`${base}/models/text-embedding-004:embedContent?key=${encodeURIComponent(apiKey)}`, {
@@ -233,7 +233,7 @@ export const embedTexts = createServerFn({ method: "POST" })
         return { ok: true as const, vectors };
       }
       if (provider === "openai" || provider === "openai-compatible") {
-        const base = (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+        const base = providerUrl(data.providerConfig);
         response = await fetch(`${base}/embeddings`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
           body: JSON.stringify({ model: provider === "openai" ? "text-embedding-3-small" : model, input: data.texts }),
