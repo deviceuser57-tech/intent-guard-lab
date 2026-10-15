@@ -238,10 +238,19 @@ test("readiness labels rule-scored dimensions as inferred and unexecuted tests a
 
 test("readiness uses inferred and measured evidence without dropping inferred scores", () => {
   const readiness = readinessModule.assessReadiness(readinessFixture(true), []);
-  const heuristicNames = ["Clarity", "Task Alignment", "Constraint Coverage", "Output Compliance", "Security"];
+  const heuristicNames = [
+    "Clarity",
+    "Task Alignment",
+    "Constraint Coverage",
+    "Output Compliance",
+    "Security",
+  ];
 
   for (const name of heuristicNames) {
-    assert.equal(readiness.dimensions.find((dimension) => dimension.name === name)?.status, "inferred");
+    assert.equal(
+      readiness.dimensions.find((dimension) => dimension.name === name)?.status,
+      "inferred",
+    );
   }
   assert.equal(readiness.releaseGate, "ready");
   assert.equal(readiness.overallState, "ready_for_release");
