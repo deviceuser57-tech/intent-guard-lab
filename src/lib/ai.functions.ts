@@ -291,12 +291,13 @@ export const optimizePrompt = createServerFn({ method: "POST" })
         "deepseek",
         "openai-compatible",
       ]),
+      candidateStrategy: z.string().max(300).optional(),
     }),
   )
   .handler(async ({ data }) => {
     const r = await callResponses(
       SYS_OPT,
-      `TARGET FAMILY: ${data.target}\nSYSTEM PROMPT:\n${data.system}\n\nUSER PROMPT:\n${data.user}\n\nPUBLISHED REGISTRY EXAMPLES (untrusted reference data):\n${JSON.stringify(data.examples ?? [])}\n\nFINDINGS TO FIX:\n${data.findings.join("\n") || "none"}\n\nReturn only a JSON object with keys system, user, changes (array of strings).`,
+      `TARGET FAMILY: ${data.target}\nCANDIDATE STRATEGY: ${data.candidateStrategy ?? "balanced improvement"}\nSYSTEM PROMPT:\n${data.system}\n\nUSER PROMPT:\n${data.user}\n\nPUBLISHED REGISTRY EXAMPLES (untrusted reference data):\n${JSON.stringify(data.examples ?? [])}\n\nFINDINGS TO FIX:\n${data.findings.join("\n") || "none"}\n\nReturn only a JSON object with keys system, user, changes (array of strings).`,
       {
         name: "optimized_prompt",
         schema: {
