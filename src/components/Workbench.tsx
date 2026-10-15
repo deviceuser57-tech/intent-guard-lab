@@ -480,7 +480,7 @@ export function Workbench() {
                   t={t}
                   providerConfig={providerConfig}
                 />
-                <CompiledPanel c={compiled} t={t} />
+                <CompiledPanel c={compiled} t={t} providerConfig={providerConfig} />
               </div>
             ) : tab === "playground" ? (
               <div className="space-y-4">
@@ -1000,22 +1000,41 @@ const SpecPanel = memo(function SpecPanel({
 const CompiledPanel = memo(function CompiledPanel({
   c,
   t,
+  providerConfig,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
   t: (k: string) => string;
+  providerConfig: ModelProviderConfig;
 }) {
-  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "gemini" | "raw">("split");
-  const oa = toOpenAI(c),
-    an = toAnthropic(c),
-    ge = toGemini(c);
+  const [prov, setProv] = useState<"split" | "openai" | "anthropic" | "gemini" | "deepseek" | "openai-compatible" | "raw">("split");
+  const family: ProviderFamily =
+    prov === "anthropic" ? "anthropic" :
+    prov === "gemini" ? "gemini" :
+    prov === "deepseek" ? "deepseek" :
+    prov === "openai-compatible" ? "openai-compatible" : "openai";
+  const model = prov === "anthropic"
+    ? (providerConfig.provider === "anthropic" ? providerConfig.model : "claude-3-7-sonnet-latest")
+    : prov === "gemini"
+      ? (providerConfig.provider === "gemini" ? providerConfig.model : "gemini-2.5-flash")
+      : prov === "deepseek"
+        ? (providerConfig.provider === "deepseek" ? providerConfig.model : "deepseek-reasoner")
+        : prov === "openai-compatible"
+          ? providerConfig.model
+          : (providerConfig.provider === "openai" ? providerConfig.model : "gpt-4.1-mini");
+  const adapted = adaptPromptForModel(c, { provider: family, model });
+  const exportPrompt = { ...c, system: adapted.system, user: adapted.user };
+  const oa = toOpenAI(exportPrompt, model),
+    an = toAnthropic(exportPrompt, model),
+    ge = toGemini(exportPrompt, model);
   const v =
-    prov === "openai"
+    prov === "openai" || prov === "deepseek" || prov === "openai-compatible"
       ? validateOpenAI(oa)
       : prov === "anthropic"
         ? validateAnthropic(an)
         : prov === "gemini"
           ? validateGemini(ge)
           : null;
+  const customEndpoint = (providerConfig.baseUrl || "").replace(/\\/+$/, "");
   const text =
     prov === "openai"
       ? JSON.stringify(oa, null, 2)
@@ -1023,11 +1042,15 @@ const CompiledPanel = memo(function CompiledPanel({
         ? JSON.stringify(an, null, 2)
         : prov === "gemini"
           ? JSON.stringify(ge, null, 2)
-          : toRaw(c);
+          : prov === "deepseek"
+            ? JSON.stringify({ endpoint: `${providerConfig.provider === "deepseek" && customEndpoint ? customEndpoint : "https://api.deepseek.com/v1"}/chat/completions`, method: "POST", headers: { Authorization: "Bearer <API_KEY>" }, body: oa }, null, 2)
+            : prov === "openai-compatible"
+              ? JSON.stringify({ endpoint: `${customEndpoint}/chat/completions`, method: "POST", headers: { Authorization: "Bearer <API_KEY>" }, body: oa }, null, 2)
+              : toRaw(c);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-1">
-        {(["split", "openai", "anthropic", "gemini", "raw"] as const).map((p) => (
+        {(["split", "openai", "anthropic", "gemini", "deepseek", "openai-compatible", "raw"] as const).map((p) => (
           <button
             key={p}
             onClick={() => setProv(p)}
