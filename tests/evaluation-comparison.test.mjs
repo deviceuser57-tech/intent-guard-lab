@@ -10,7 +10,9 @@ test("evaluation comparison reports score deltas and token cost", async () => {
   const output = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const evaluation = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
+  const evaluation = await import(
+    `data:text/javascript;base64,${Buffer.from(output).toString("base64")}`,
+  );
   const baseline = {
     metrics: [{ key: "coverage", value: 80 }, { key: "correctness", value: 90 }],
     tokens: { system: 100, user: 50, total: 150 },
