@@ -164,14 +164,36 @@ export function Workbench() {
   const t = useMemo(() => {
     const b = makeT(lang);
     const fixedEnglishLabels = new Set([
-      "tabIntent", "tabSpec", "tabCompiled", "tabSecurity", "tabRegistry",
-      "taskType", "risk", "complexity", "confidence", "persona", "components",
-      "signals", "keywords", "goal", "audience", "tone", "constraints",
-      "outputFormat", "schema", "examples", "reasoning", "maxWords", "variables",
-      "system", "user", "contract", "archetype", "target",
+      "tabIntent",
+      "tabSpec",
+      "tabCompiled",
+      "tabSecurity",
+      "tabRegistry",
+      "taskType",
+      "risk",
+      "complexity",
+      "confidence",
+      "persona",
+      "components",
+      "signals",
+      "keywords",
+      "goal",
+      "audience",
+      "tone",
+      "constraints",
+      "outputFormat",
+      "schema",
+      "examples",
+      "reasoning",
+      "maxWords",
+      "variables",
+      "system",
+      "user",
+      "contract",
+      "archetype",
+      "target",
     ]);
-    return (k: string) =>
-      fixedEnglishLabels.has(k) ? makeT("en")(k) : L2[k]?.[lang] ?? b(k);
+    return (k: string) => (fixedEnglishLabels.has(k) ? makeT("en")(k) : (L2[k]?.[lang] ?? b(k)));
   }, [lang]);
   const [aiOv, setAiOv] = useState<{ system: string; user: string; changes: string[] } | null>(
     null,

@@ -65,6 +65,6 @@ test("scores exact configured phrase matches without claiming certification", ()
   assert.match(scoreOutput("A normal response.", valid).verdict, /not policy enforcement/);
 });
 test("neutralizes formula-like CSV cells and escapes quotes", () => {
-  assert.equal(csvCell("=1+1"), "\"'=1+1\"");
+  assert.equal(csvCell("=1+1"), '"\'=1+1"');
   assert.equal(csvCell('hello "world"'), '"hello ""world"""');
 });
