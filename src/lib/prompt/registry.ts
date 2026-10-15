@@ -1,6 +1,5 @@
 import type { CompiledPrompt, Archetype } from "./types";
 import { normalize } from "../engine.mjs";
-import { writeCloudRegistry } from "../cloudRegistry";
 
 export type Lifecycle = "draft" | "review" | "published" | "deprecated";
 
@@ -196,10 +195,8 @@ const flush = (): void => {
   if (typeof window !== "undefined" && cache) {
     try {
       localStorage.setItem(KEY, JSON.stringify(cache));
-      // Cloud sync is opt-in; credentials/session are managed separately and never included in this snapshot.
-      void writeCloudRegistry(snapshot(cache)).catch(() => {
-        // Local-first operation remains available while cloud sync is disconnected or misconfigured.
-      });
+      // Notify the opt-in cloud adapter without coupling this pure registry module to network code.
+      window.dispatchEvent(new CustomEvent("intent-guard:registry-changed", { detail: snapshot(cache) }));
     } catch (error) {
       // Keep the in-memory state usable if browser storage is unavailable/full.
       console.error("Unable to persist prompt registry:", error);
