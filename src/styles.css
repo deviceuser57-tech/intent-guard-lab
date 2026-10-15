@@ -55,7 +55,8 @@
   --color-warning: var(--warning);
   --font-sans: "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --font-display: "Space Grotesk", "IBM Plex Sans Arabic", sans-serif;
+  --font-display: "IBM Plex Sans", "IBM Plex Sans Arabic", sans-serif;
+  --color-brand-foreground: var(--brand-foreground);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -68,27 +69,40 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.975 0.006 85);
-  --foreground: oklch(0.2 0.02 60);
-  --card: oklch(0.995 0.003 85);
-  --card-foreground: oklch(0.2 0.02 60);
-  --popover: oklch(0.995 0.003 85);
-  --popover-foreground: oklch(0.2 0.02 60);
-  --primary: oklch(0.32 0.06 160);
-  --primary-foreground: oklch(0.97 0.01 85);
-  --secondary: oklch(0.93 0.02 85);
-  --secondary-foreground: oklch(0.25 0.02 60);
-  --muted: oklch(0.945 0.012 85);
-  --muted-foreground: oklch(0.5 0.02 60);
-  --accent: oklch(0.92 0.03 85);
-  --accent-foreground: oklch(0.2 0.02 60);
+  --background: oklch(0.982 0.004 240);
+  --foreground: oklch(0.33 0.055 224);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.592 0.108 229);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.972 0.014 236);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.967 0.007 240);
+  --muted-foreground: oklch(0.49 0.031 242);
+  --accent: oklch(0.949 0.03 234);
+  --accent-foreground: var(--foreground);
   --destructive: oklch(0.55 0.2 28);
   --destructive-foreground: oklch(0.98 0 0);
   --success: oklch(0.55 0.13 155);
   --warning: oklch(0.65 0.15 70);
-  --border: oklch(0.88 0.015 85);
-  --input: oklch(0.88 0.015 85);
-  --ring: oklch(0.32 0.06 160);
+  --border: oklch(0.918 0.016 239);
+  --input: oklch(0.853 0.04 235);
+  --ring: var(--primary);
+  --brand-foreground: oklch(1 0 0);
+  --brand-start: oklch(0.518 0.11 238);
+  --brand-end: oklch(0.725 0.133 174);
+  --brand-gradient: linear-gradient(135deg, var(--brand-start), var(--brand-end));
+  --section-underline: oklch(0.877 0.131 87);
+  --panel-shadow: 0 10px 15px -3px oklch(0.2 0.03 230 / 0.07), 0 4px 6px -2px oklch(0.2 0.03 230 / 0.05);
+  --tab-peach: oklch(0.954 0.041 72);
+  --tab-blue: oklch(0.95 0.032 233);
+  --tab-green: oklch(0.95 0.027 148);
+  --tab-yellow: oklch(0.983 0.04 99);
+  --tab-coral: oklch(0.944 0.035 34);
+  --tab-cyan: oklch(0.957 0.031 202);
+  --tab-lilac: oklch(0.93 0.026 297);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -141,17 +155,54 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
-/* Glass‑morphism card styling */
-.glass-card {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(12px);
-  border-radius: var(--radius-lg);
+.workbench { letter-spacing: 0; }
+.workbench-header {
+  background: var(--brand-gradient);
+  color: var(--brand-foreground);
+  padding-block: 22px 42px;
 }
-
-.dark .glass-card {
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.workbench-brand { max-width: 900px; padding-top: 24px; }
+.workbench-brand p { opacity: 0.9; }
+.workbench-modes, .workbench-language { border-color: color-mix(in oklch, var(--brand-foreground) 40%, transparent); }
+.workbench-mode, .workbench-language { color: var(--brand-foreground); }
+.workbench-mode:hover, .workbench-language:hover { background: color-mix(in oklch, var(--brand-foreground) 18%, transparent); color: var(--brand-foreground); }
+.workbench-mode-active { background: var(--card); color: var(--primary); }
+.workbench-mode-active:hover { background: var(--card); color: var(--primary); }
+.workbench-section-title { display: inline-block; padding-bottom: 12px; border-bottom: 4px solid var(--section-underline); }
+.workbench-task { background: var(--secondary); min-height: 148px; line-height: 1.65; }
+.workbench-panel { box-shadow: var(--panel-shadow); }
+.workbench-stat { border-inline-start: 5px solid var(--primary); }
+.workbench-tab {
+  height: auto;
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 3px solid transparent;
+  color: var(--foreground);
+  font-weight: 700;
+  white-space: normal;
+  text-align: center;
+  flex: 1 1 auto;
+}
+.workbench-tab-0 { background: var(--tab-peach); }
+.workbench-tab-1 { background: var(--tab-blue); }
+.workbench-tab-2 { background: var(--tab-green); }
+.workbench-tab-3 { background: var(--tab-yellow); }
+.workbench-tab-4 { background: var(--tab-coral); }
+.workbench-tab-5 { background: var(--tab-cyan); }
+.workbench-tab-6 { background: var(--tab-lilac); }
+.workbench-tab:hover { background: var(--accent); color: var(--primary); }
+.workbench-tab-active, .workbench-tab-active:hover { background: var(--card); color: var(--primary); border-bottom-color: var(--primary); }
+.workbench-content { min-height: 200px; }
+.workbench-empty { background: var(--card); border-bottom: 1px solid var(--border); }
+.workbench h3 { letter-spacing: 0; }
+.workbench pre { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .workbench-header { padding-block: 16px 30px; }
+  .workbench-header-tools { justify-content: center; }
+  .workbench-brand { padding-top: 22px; }
+  .workbench-tab { flex-basis: 40%; padding-inline: 8px; }
+  .workbench-panel { padding: 16px; }
 }
 
 @layer base {

@@ -31,6 +31,8 @@ import { gsap } from "gsap";
 import { optimizePrompt, runPrompt, judgeOutput } from "@/lib/ai.functions";
 import { GuardrailConsole } from "@/components/GuardrailConsole";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, FileCode2, Globe2 } from "lucide-react";
 
 const L2: Record<string, { en: string; ar: string }> = {
   tabPlayground: { en: "Live Playground", ar: "ساحة الاختبار الحية" },
@@ -116,10 +118,10 @@ function Card({
   right?: ReactNode;
 }) {
   return (
-    <section className="glass-card rounded-lg border bg-card/80 backdrop-blur-lg border-white/20 p-4 shadow-xl">
+    <section className="workbench-panel rounded-lg border bg-card p-6">
       {title && (
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          <h3 className="text-lg font-semibold text-primary">
             {title}
           </h3>
           {right}
@@ -232,7 +234,7 @@ export function Workbench() {
   );
   const report = useMemo(() => (compiled ? redTeam(compiled) : null), [compiled]);
   const evalR = useMemo(
-    () => (compiled && dSpec && analysis ? evaluate(compiled, dSpec!, analysis) : null),
+    () => (compiled && dSpec && analysis ? evaluate(compiled, dSpec, analysis) : null),
     [compiled, dSpec, analysis],
   );
   const governance = useMemo(
@@ -275,55 +277,61 @@ export function Workbench() {
   };
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-background text-foreground">
-      <header ref={headerRef} className="border-b">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded bg-primary font-mono text-sm font-bold text-primary-foreground">
-              {"{P}"}
-            </div>
-            <div>
-              <h1 className="font-display text-lg font-semibold leading-tight">{t("appTitle")}</h1>
-              <p className="text-xs text-muted-foreground">{t("appSub")}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex rounded-md border p-0.5">
+    <div ref={containerRef} className="workbench min-h-screen bg-background text-foreground">
+      <header ref={headerRef} className="workbench-header">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="workbench-header-tools flex flex-wrap items-center justify-between gap-3">
+            <FileCode2 className="h-10 w-10" aria-hidden="true" />
+            <div className="flex flex-wrap items-center gap-2">
+            <div className="workbench-modes flex rounded-md border p-0.5">
               {(["quick", "expert", "enterprise"] as Mode[]).map((m) => (
-                <button
+                <Button variant="ghost"
                   key={m}
                   onClick={() => setMode(m)}
-                  className={`rounded px-3 py-1.5 text-sm ${mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  aria-pressed={mode === m}
+                  className={`rounded px-3 py-1.5 text-sm ${mode === m ? "workbench-mode-active" : "workbench-mode"}`}
                 >
                   {t(m)}
-                </button>
+                </Button>
               ))}
             </div>
-            <button
+            <Button variant="ghost"
               onClick={() => setLang(lang === "en" ? "ar" : "en")}
-              className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+              className="workbench-language rounded-md border px-3 py-1.5 text-sm"
             >
+              <Globe2 aria-hidden="true" />
               {t("lang")}
-            </button>
+            </Button>
+            </div>
+          </div>
+          <div className="workbench-brand mx-auto text-center">
+            <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl">{t("appTitle")}</h1>
+            <p className="mt-4 text-lg font-medium">{t("appSub")}</p>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[380px_1fr]">
-        <aside className="space-y-4">
-          <Card title={t("describe")}>
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <section className="workbench-request mb-10">
+          <div className="mb-6 text-center">
+            <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">{t("describe")}</h2>
+          </div>
+          <div className="grid gap-5 md:grid-cols-[1fr_280px]">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              rows={7}
+              rows={5}
+              aria-label={t("describe")}
               placeholder={t("placeholder")}
-              className={inputCls}
+              className={`${inputCls} workbench-task resize-y`}
             />
-            <label className="mt-3 block text-xs text-muted-foreground">{t("archetype")}</label>
+            <div className="flex flex-col justify-end">
+            <label htmlFor="archetype-choice" className="mb-2 block text-sm font-semibold">{t("archetype")}</label>
             <select
+              id="archetype-choice"
               value={override}
               onChange={(e) => setOverride(e.target.value as Archetype | "")}
-              className={`${inputCls} mt-1`}
+              className={inputCls}
             >
               <option value="">{t("auto")}</option>
               {ARCHS.map((a) => (
@@ -332,16 +340,18 @@ export function Workbench() {
                 </option>
               ))}
             </select>
-            <button
+            <Button
               onClick={run}
               disabled={!input.trim()}
-              className="mt-4 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              className="mt-4 h-12 w-full whitespace-normal rounded-md text-sm font-semibold"
             >
               {t("generate")}
-            </button>
-          </Card>
+              <ArrowRight className="rtl:rotate-180" aria-hidden="true" />
+            </Button>
+            </div>
+          </div>
           {analysis && report && evalR && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
               <Stat
                 label={t(analysis.archetype)}
                 value={`${Math.round(analysis.confidence * 100)}%`}
@@ -351,20 +361,25 @@ export function Workbench() {
               <Stat label={t("evalScore")} value={`${evalR.overall}`} />
             </div>
           )}
-        </aside>
+        </section>
 
-        <div className="min-w-0">
-          <nav className="mb-4 flex flex-wrap gap-1 border-b">
-            {tabs.map((x) => (
-              <button
+        <section className="min-w-0">
+          <div className="mb-6 text-center">
+            <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">{tabLabel[tab]}</h2>
+          </div>
+          <nav aria-label="Workbench" className="workbench-tabs flex flex-wrap gap-1 border-b">
+            {tabs.map((x, i) => (
+              <Button variant="ghost"
                 key={x}
                 onClick={() => setTab(x)}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === x ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                aria-current={tab === x ? "page" : undefined}
+                className={`workbench-tab workbench-tab-${i} ${tab === x ? "workbench-tab-active" : ""}`}
               >
                 {tabLabel[x]}
-              </button>
+              </Button>
             ))}
           </nav>
+          <div className={`workbench-content workbench-content-${tab} py-6`}>
           {tab === "registry" ? (
             <RegistryPanel
               t={t}
@@ -381,7 +396,8 @@ export function Workbench() {
               {...(compiled ? { systemPrompt: compiled.system, userPrompt: compiled.user } : {})}
             />
           ) : !analysis || !spec || !compiled || !report || !evalR ? (
-            <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
+            <div className="workbench-empty flex min-h-40 flex-col items-center justify-center gap-4 p-6 text-center text-sm text-muted-foreground">
+              <FileCode2 className="h-10 w-10 text-primary" aria-hidden="true" />
               {t("emptyState")}
             </div>
           ) : tab === "intent" ? (
@@ -408,7 +424,8 @@ export function Workbench() {
           ) : (
             <SecurityPanel report={report} evalR={evalR} t={t} />
           )}
-        </div>
+          </div>
+        </section>
       </main>
     </div>
   );
@@ -581,9 +598,9 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div className="workbench-stat rounded-lg border bg-secondary p-4">
       <div className="truncate text-xs text-muted-foreground">{label}</div>
-      <div className="font-mono text-xl font-semibold">{value}</div>
+      <div className="mt-2 text-2xl font-bold text-primary">{value}</div>
     </div>
   );
 }

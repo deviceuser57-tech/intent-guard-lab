@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Prompt engines live in src/lib/prompt/* as pure, deterministic client-side modules; registry persists to localStorage — no backend needed for static analysis.
+- Workbench presentation is scoped by named CSS classes and semantic tokens in src/styles.css; keep reference styling separate from prompt-engine logic so visual changes cannot alter analysis.
