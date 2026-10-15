@@ -14,7 +14,7 @@ export function ModelSettings({ config, onChange, lang }: {
   const [status, setStatus] = useState("");
   const ar = lang === "ar";
   const set = (patch: Partial<ModelProviderConfig>) => onChange({ ...config, ...patch });
-  const changeProvider = (provider: ModelProvider) => set({ provider, ...providerDefaults[provider] });
+  const changeProvider = (provider: ModelProvider) => set({ provider, ...providerDefaults[provider], apiKey: "" });
   const check = async () => {
     setBusy(true); setStatus("");
     try {
