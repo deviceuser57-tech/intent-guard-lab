@@ -44,7 +44,8 @@ export function CloudStoragePanel({ lang }: { lang: "ar" | "en" }) {
         setSelectedWorkspace(connection.activeWorkspaceId ?? "");
       })
       .catch((error: unknown) => {
-        if (active) setStatus(error instanceof Error ? error.message : "Could not load workspaces.");
+        if (active)
+          setStatus(error instanceof Error ? error.message : "Could not load workspaces.");
       });
     return () => {
       active = false;
@@ -71,7 +72,9 @@ export function CloudStoragePanel({ lang }: { lang: "ar" | "en" }) {
       } else {
         await writeCloudRegistry(registry.read());
       }
-      setStatus(ar ? "تم الاتصال ومزامنة السجل الشخصي." : "Connected and personal registry synced.");
+      setStatus(
+        ar ? "تم الاتصال ومزامنة السجل الشخصي." : "Connected and personal registry synced.",
+      );
       setWorkspaces(await listCloudWorkspaces());
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Cloud connection failed.");

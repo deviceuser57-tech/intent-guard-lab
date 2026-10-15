@@ -26,9 +26,10 @@ if (typeof window !== "undefined") {
   window.addEventListener("intent-guard:registry-changed", (event: Event) => {
     if (!getCloudConnection()) return;
     const detail = (event as CustomEvent<RegistrySnapshot>).detail;
-    if (detail) void writeCloudRegistry(detail).catch(() => {
-      // Local persistence remains available if cloud sync is temporarily unavailable.
-    });
+    if (detail)
+      void writeCloudRegistry(detail).catch(() => {
+        // Local persistence remains available if cloud sync is temporarily unavailable.
+      });
   });
 }
 
@@ -210,8 +211,7 @@ export async function writeCloudRegistry(snapshot: RegistrySnapshot): Promise<vo
 export async function listCloudWorkspaces(): Promise<CloudWorkspace[]> {
   const connection = getCloudConnection();
   if (!connection) return [];
-  const path =
-    `/rest/v1/intent_guard_workspace_members?select=workspace_id,role,workspace:intent_guard_workspaces(id,name,owner_id)&user_id=eq.${encodeURIComponent(connection.userId)}`;
+  const path = `/rest/v1/intent_guard_workspace_members?select=workspace_id,role,workspace:intent_guard_workspaces(id,name,owner_id)&user_id=eq.${encodeURIComponent(connection.userId)}`;
   const response = await authorizedRequest(connection, path);
   if (!response.ok) {
     throw new Error("Could not list workspaces. Run the updated SQL migration and check RLS.");
@@ -220,9 +220,7 @@ export async function listCloudWorkspaces(): Promise<CloudWorkspace[]> {
     role: "owner" | "editor";
     workspace: { id: string; name: string; owner_id: string } | null;
   }>;
-  return rows.flatMap((row) =>
-    row.workspace ? [{ ...row.workspace, role: row.role }] : [],
-  );
+  return rows.flatMap((row) => (row.workspace ? [{ ...row.workspace, role: row.role }] : []));
 }
 
 export async function createCloudWorkspace(name: string): Promise<string> {
@@ -239,7 +237,10 @@ export async function createCloudWorkspace(name: string): Promise<string> {
   return id;
 }
 
-export async function inviteCloudWorkspaceMember(workspaceId: string, email: string): Promise<void> {
+export async function inviteCloudWorkspaceMember(
+  workspaceId: string,
+  email: string,
+): Promise<void> {
   const connection = getCloudConnection();
   if (!connection) throw new Error("Connect to Supabase first.");
   const response = await authorizedRequest(
