@@ -14,7 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      prompt_registries: {
+        Row: {
+          registry: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          registry?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          registry?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
