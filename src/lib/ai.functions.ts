@@ -138,17 +138,17 @@ async function callConfiguredProvider(
     const result = asRecord(await response.json());
     const text =
       config.provider === "anthropic"
-        ? asRecords(result.content)
-            .filter((part) => part.type === "text")
-            .map((part) => (typeof part.text === "string" ? part.text : ""))
+        ? asRecords(result["content"])
+            .filter((part) => part["type"] === "text")
+            .map((part) => (typeof part["text"] === "string" ? part["text"] : ""))
             .join("\n")
         : config.provider === "gemini"
-          ? asRecords(asRecord(asRecords(result.candidates)[0]?.content).parts)
-              .map((part) => (typeof part.text === "string" ? part.text : ""))
+          ? asRecords(asRecord(asRecords(result["candidates"])[0]?.["content"])["parts"])
+              .map((part) => (typeof part["text"] === "string" ? part["text"] : ""))
               .join("\n")
           : (() => {
-              const message = asRecord(asRecords(result.choices)[0]?.message);
-              return typeof message.content === "string" ? message.content : undefined;
+              const message = asRecord(asRecords(result["choices"])[0]?.["message"]);
+              return typeof message["content"] === "string" ? message["content"] : undefined;
             })();
     if (typeof text !== "string" || !text.trim())
       return {
@@ -408,8 +408,8 @@ export const embedTexts = createServerFn({ method: "POST" })
               error: safeMessage(response.status),
             };
           const result = asRecord(await response.json());
-          const embedding = asRecord(result.embedding);
-          vectors.push(numericVector(embedding.values));
+          const embedding = asRecord(result["embedding"]);
+          vectors.push(numericVector(embedding["values"]));
         }
         return { ok: true as const, vectors };
       }
@@ -430,10 +430,10 @@ export const embedTexts = createServerFn({ method: "POST" })
             error: safeMessage(response.status),
           };
         const result = asRecord(await response.json());
-        const rows = asRecords(result.data).sort(
-          (left, right) => Number(left.index ?? 0) - Number(right.index ?? 0),
+        const rows = asRecords(result["data"]).sort(
+          (left, right) => Number(left["index"] ?? 0) - Number(right["index"] ?? 0),
         );
-        return { ok: true as const, vectors: rows.map((item) => numericVector(item.embedding)) };
+        return { ok: true as const, vectors: rows.map((item) => numericVector(item["embedding"])) };
       }
       return {
         ok: false as const,

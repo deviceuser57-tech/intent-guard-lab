@@ -1538,10 +1538,10 @@ function AiOptimizer({
           : "openai"
         : target
     ) as ProviderFamily;
-    const adapted = adaptPromptForModel(
-      { system: c.system, user: c.user },
-      { provider: family, model: providerConfig.model },
-    );
+    const adapted = adaptPromptForModel(c, {
+      provider: family,
+      model: providerConfig.model,
+    });
     let cur = { system: adapted.system, user: adapted.user };
     const all: string[] = [];
     try {
@@ -1581,7 +1581,6 @@ function AiOptimizer({
       selected: boolean;
     }> = [];
     const failures: string[] = [];
-    const base = { system: c.system, user: c.user };
     const examples = await loadExamples();
 
     try {
@@ -1592,7 +1591,7 @@ function AiOptimizer({
             : "openai"
           : target
       ) as ProviderFamily;
-      const adaptedBase = adaptPromptForModel(base, {
+      const adaptedBase = adaptPromptForModel(c, {
         provider: family,
         model: providerConfig.model,
       });
@@ -1847,7 +1846,7 @@ function Playground({
       const system = sub(c.system),
         user = sub(c.user);
       const adapted = adaptPromptForModel(
-        { system, user },
+        { ...c, system, user },
         { provider: providerConfig.provider, model: providerConfig.model },
       );
       const r = await run({

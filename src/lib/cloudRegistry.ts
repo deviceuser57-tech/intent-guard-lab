@@ -99,17 +99,19 @@ export async function signInCloud(
     email: email.trim(),
     password,
   });
-  const user = (result.user ?? {}) as Record<string, unknown>;
-  if (typeof result.access_token !== "string" || typeof user.id !== "string") {
+  const user = (result["user"] ?? {}) as Record<string, unknown>;
+  if (typeof result["access_token"] !== "string" || typeof user["id"] !== "string") {
     throw new Error("Supabase did not return a valid authenticated session.");
   }
   const connection: CloudConnection = {
     url: cleanUrl,
     anonKey: anonKey.trim(),
-    accessToken: result.access_token,
-    ...(typeof result.refresh_token === "string" ? { refreshToken: result.refresh_token } : {}),
-    userId: user.id,
-    ...(typeof user.email === "string" ? { email: user.email } : {}),
+    accessToken: result["access_token"],
+    ...(typeof result["refresh_token"] === "string"
+      ? { refreshToken: result["refresh_token"] }
+      : {}),
+    userId: user["id"],
+    ...(typeof user["email"] === "string" ? { email: user["email"] } : {}),
   };
   saveConnection(connection);
   return connection;
@@ -137,12 +139,12 @@ async function authorizedRequest(
         "token?grant_type=refresh_token",
         { refresh_token: connection.refreshToken },
       );
-      if (typeof refreshed.access_token === "string") {
+      if (typeof refreshed["access_token"] === "string") {
         const next: CloudConnection = {
           ...connection,
-          accessToken: refreshed.access_token,
-          ...(typeof refreshed.refresh_token === "string"
-            ? { refreshToken: refreshed.refresh_token }
+          accessToken: refreshed["access_token"],
+          ...(typeof refreshed["refresh_token"] === "string"
+            ? { refreshToken: refreshed["refresh_token"] }
             : {}),
         };
         saveConnection(next);
@@ -258,8 +260,8 @@ export async function inviteCloudWorkspaceMember(
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     throw new Error(
-      typeof body.message === "string"
-        ? body.message
+      typeof body["message"] === "string"
+        ? body["message"]
         : "Could not invite this user. They must have a Supabase account and you must be a workspace member.",
     );
   }
