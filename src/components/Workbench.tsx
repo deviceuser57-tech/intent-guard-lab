@@ -208,37 +208,7 @@ export function Workbench() {
   const [lang, setLang] = useState<Lang>("en");
   const t = useMemo(() => {
     const b = makeT(lang);
-    const fixedEnglishLabels = new Set([
-      "tabIntent",
-      "tabSpec",
-      "tabCompiled",
-      "tabSecurity",
-      "tabRegistry",
-      "taskType",
-      "risk",
-      "complexity",
-      "confidence",
-      "persona",
-      "components",
-      "signals",
-      "keywords",
-      "goal",
-      "audience",
-      "tone",
-      "constraints",
-      "outputFormat",
-      "schema",
-      "examples",
-      "reasoning",
-      "maxWords",
-      "variables",
-      "system",
-      "user",
-      "contract",
-      "archetype",
-      "target",
-    ]);
-    return (k: string) => (fixedEnglishLabels.has(k) ? makeT("en")(k) : (L2[k]?.[lang] ?? b(k)));
+    return (k: string) => L2[k]?.[lang] ?? b(k);
   }, [lang]);
   const [aiOv, setAiOv] = useState<{ system: string; user: string; changes: string[] } | null>(
     null,
@@ -330,16 +300,17 @@ export function Workbench() {
   useEffect(() => {
     if (!tabs.includes(tab)) setTab("compiled");
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isAr = lang === "ar";
   const tabLabel: Record<Tab, string> = {
-    intent: "Intent Analysis",
-    spec: "Specification",
-    compiled: "Compiled Prompts",
-    security: "Security / Validation",
-    playground: "Playground",
-    registry: "Prompt Registry",
-    guardrails: "Guardrails",
-    help: "Help & User Guide",
-    models: lang === "ar" ? "النماذج وواجهات API والتخزين السحابي" : "Models, APIs & Cloud Storage",
+    intent: t("tabIntent"),
+    spec: t("tabSpec"),
+    compiled: t("tabCompiled"),
+    security: t("tabSecurity"),
+    playground: t("tabPlayground"),
+    registry: t("tabRegistry"),
+    guardrails: isAr ? "الحواجز الأمنية" : "Guardrails",
+    help: isAr ? "المساعدة ودليل الاستخدام" : "Help & User Guide",
+    models: isAr ? "النماذج وواجهات API والتخزين السحابي" : "Models, APIs & Cloud Storage",
   };
 
   // GSAP shiny theme: entrance, looping shine sweep, and tab content transitions.
