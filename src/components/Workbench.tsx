@@ -204,6 +204,7 @@ const inputCls =
 export function Workbench() {
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [lang, setLang] = useState<Lang>("en");
   const t = useMemo(() => {
     const b = makeT(lang);
@@ -341,9 +342,74 @@ export function Workbench() {
     models: lang === "ar" ? "النماذج وواجهات API والتخزين السحابي" : "Models, APIs & Cloud Storage",
   };
 
+  // GSAP shiny theme: entrance, looping shine sweep, and tab content transitions.
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(".workbench-sidebar", { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out", clearProps: "transform,opacity" });
+      gsap.fromTo(".workbench-side-item", { x: -20, opacity: 0 }, {
+        x: 0,
+        opacity: 1,
+        clearProps: "transform,opacity",
+        duration: 0.5,
+        stagger: 0.06,
+        delay: 0.2,
+        ease: "power2.out",
+      });
+      gsap.fromTo(".workbench-brand > *", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, stagger: 0.12, ease: "power3.out", clearProps: "transform,opacity" });
+      gsap.fromTo(
+        ".workbench-shine",
+        { "--shine-x": "-60%" },
+        { "--shine-x": "160%", duration: 3.2, ease: "power1.inOut", repeat: -1, repeatDelay: 1.8 },
+      );
+      gsap.to(".workbench-sidebar-brand svg", {
+        rotate: 360,
+        duration: 12,
+        ease: "none",
+        repeat: -1,
+      });
+    }, root);
+    return () => ctx.revert();
+  }, []);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    gsap.fromTo(el, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" });
+    gsap.fromTo(
+      ".workbench-side-active",
+      { "--glow": 0 },
+      { "--glow": 1, duration: 0.6, ease: "power2.out" },
+    );
+  }, [tab]);
+
   return (
-    <div ref={containerRef} className="workbench min-h-screen bg-background text-foreground">
-      <header ref={headerRef} className="workbench-header">
+    <div ref={containerRef} className="workbench workbench-shell min-h-screen bg-background text-foreground">
+      <aside className="workbench-sidebar" aria-label="Workbench">
+        <div className="workbench-sidebar-brand">
+          <FileCode2 className="h-6 w-6" aria-hidden="true" />
+          <span>Workbench</span>
+        </div>
+        <nav className="workbench-sidebar-nav">
+          {tabs.map((x, i) => (
+            <button
+              type="button"
+              key={x}
+              onClick={() => setTab(x)}
+              aria-current={tab === x ? "page" : undefined}
+              className={`workbench-side-item workbench-side-dot-${i} ${tab === x ? "workbench-side-active" : ""}`}
+            >
+              <span className="workbench-side-dot" aria-hidden="true" />
+              <span>{tabLabel[x]}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <div className="workbench-body min-w-0 flex-1">
+      <header ref={headerRef} className="workbench-header workbench-shine">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="workbench-header-tools flex flex-wrap items-center justify-between gap-3">
             <FileCode2 className="h-10 w-10" aria-hidden="true" />
@@ -442,20 +508,7 @@ export function Workbench() {
               {tabLabel[tab]}
             </h2>
           </div>
-          <nav aria-label="Workbench" className="workbench-tabs flex flex-wrap gap-1 border-b">
-            {tabs.map((x, i) => (
-              <Button
-                variant="ghost"
-                key={x}
-                onClick={() => setTab(x)}
-                aria-current={tab === x ? "page" : undefined}
-                className={`workbench-tab workbench-tab-${i} ${tab === x ? "workbench-tab-active" : ""}`}
-              >
-                {tabLabel[x]}
-              </Button>
-            ))}
-          </nav>
-          <div className={`workbench-content workbench-content-${tab} py-6`}>
+          <div ref={contentRef} className={`workbench-content workbench-content-${tab} py-6`}>
             {tab === "models" ? (
               <div className="space-y-4">
                 <ModelSettings config={providerConfig} onChange={setProviderConfig} lang={lang} />
@@ -513,6 +566,7 @@ export function Workbench() {
           </div>
         </section>
       </main>
+      </div>
     </div>
   );
 }
