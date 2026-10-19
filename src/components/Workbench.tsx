@@ -496,6 +496,7 @@ export function Workbench() {
               />
             ) : tab === "guardrails" ? (
               <GuardrailConsole
+                lang={lang}
                 input={input}
                 findings={report?.findings.map((f) => `${f.rule}: ${f.detail}`) ?? []}
                 {...(analysis ? { risk: analysis.risk } : {})}

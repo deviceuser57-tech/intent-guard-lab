@@ -70,6 +70,7 @@ export function GuardrailConsole({
   evaluationScore,
   systemPrompt,
   userPrompt,
+  lang = "en",
 }: {
   input: string;
   risk?: string;
@@ -77,7 +78,9 @@ export function GuardrailConsole({
   evaluationScore?: number;
   systemPrompt?: string;
   userPrompt?: string;
+  lang?: "en" | "ar";
 }) {
+  const ar = lang === "ar";
   const queryClient = useQueryClient();
   const runAI = useServerFn(runPrompt);
   const [logs, setLogs] = useState<AuditLog[]>(initialLogs);
@@ -435,32 +438,32 @@ export function GuardrailConsole({
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold">IntentGuard Operations Console</h2>
+          <h2 className="text-xl font-semibold">{ar ? "لوحة تشغيل IntentGuard" : "IntentGuard Operations Console"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Flow inspection, policy authoring, audit export and telemetry connection.
+            {ar ? "فحص المسار، كتابة السياسات، تصدير السجل وربط القياسات." : "Flow inspection, policy authoring, audit export and telemetry connection."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button className="rounded border px-3 py-2 text-sm hover:bg-accent" onClick={exportJson}>
-            Export JSON
+            {ar ? "تصدير JSON" : "Export JSON"}
           </button>
           <button className="rounded border px-3 py-2 text-sm hover:bg-accent" onClick={exportCsv}>
-            Export CSV
+            {ar ? "تصدير CSV" : "Export CSV"}
           </button>
           <button
             className="rounded border px-3 py-2 text-sm hover:bg-accent"
             onClick={() => window.print()}
           >
-            Print / Save PDF
+            {ar ? "طباعة / حفظ PDF" : "Print / Save PDF"}
           </button>
         </div>
       </div>
       <section className="rounded-lg border bg-card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Interactive decision flow
+            {ar ? "مسار القرار التفاعلي" : "Interactive decision flow"}
           </h3>
-          <span className="text-xs text-muted-foreground">Select a stage to inspect</span>
+          <span className="text-xs text-muted-foreground">{ar ? "اختر مرحلة لفحصها" : "Select a stage to inspect"}</span>
         </div>
         <div className="grid gap-2 sm:grid-cols-5">
           {[
@@ -523,7 +526,7 @@ export function GuardrailConsole({
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-              Audit log stream
+              {ar ? "بث سجل التدقيق" : "Audit log stream"}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {streamUrl
@@ -539,7 +542,7 @@ export function GuardrailConsole({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search events instantly…"
+            placeholder={ar ? "ابحث في الأحداث فورًا…" : "Search events instantly…"}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
           />
           <select
@@ -547,25 +550,25 @@ export function GuardrailConsole({
             onChange={(e) => setLevel(e.target.value as typeof level)}
             className="rounded-md border bg-background px-3 py-2 text-sm"
           >
-            <option value="all">All severities</option>
-            <option value="high-risk">High risk</option>
-            <option value="intent-drift">Intent drift</option>
-            <option value="policy-violation">Policy violation</option>
-            <option value="info">Info</option>
+            <option value="all">{ar ? "كل المستويات" : "All severities"}</option>
+            <option value="high-risk">{ar ? "خطر مرتفع" : "High risk"}</option>
+            <option value="intent-drift">{ar ? "انحراف النية" : "Intent drift"}</option>
+            <option value="policy-violation">{ar ? "مخالفة سياسة" : "Policy violation"}</option>
+            <option value="info">{ar ? "معلومة" : "Info"}</option>
           </select>
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
           <input
             value={streamUrl}
             onChange={(e) => setStreamUrl(e.target.value)}
-            placeholder="Optional SSE endpoint URL (EventSource)"
+            placeholder={ar ? "رابط بث اختياري (SSE)" : "Optional SSE endpoint URL (EventSource)"}
             className="rounded-md border bg-background px-3 py-2 text-sm"
           />
           <button
             className="rounded border px-3 py-2 text-sm"
             onClick={() => addLog("info", "Manual audit marker added.")}
           >
-            Add marker
+            {ar ? "إضافة علامة" : "Add marker"}
           </button>
         </div>
         <div className="mt-3 max-h-64 space-y-2 overflow-auto">
@@ -593,18 +596,17 @@ export function GuardrailConsole({
           ))}
           {!filteredLogs.length && (
             <p className="py-5 text-center text-sm text-muted-foreground">
-              No events match this filter.
+              {ar ? "لا توجد أحداث مطابقة." : "No events match this filter."}
             </p>
           )}
         </div>
       </section>
       <section className="rounded-lg border bg-card p-4">
         <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-          Three-output comparison matrix
+          {ar ? "مصفوفة مقارنة ثلاثة مخرجات" : "Three-output comparison matrix"}
         </h3>
         <p className="my-2 text-xs text-muted-foreground">
-          Paste outputs from models you actually ran. Scores are a local heuristic, not a provider
-          benchmark or safety certification.
+          {ar ? "الصق مخرجات النماذج التي شغّلتها فعلًا. الدرجات تقدير محلي وليست معيارًا رسميًا أو شهادة أمان." : "Paste outputs from models you actually ran. Scores are a local heuristic, not a provider benchmark or safety certification."}
         </p>
         <div className="grid gap-3 md:grid-cols-3">
           {modelOutputs.map((value, i) => (
@@ -619,7 +621,7 @@ export function GuardrailConsole({
                   )
                 }
                 className="mt-1 w-full rounded-md border bg-background p-2 text-sm font-normal"
-                placeholder="Paste model response…"
+                placeholder={ar ? "الصق استجابة النموذج…" : "Paste model response…"}
               />
             </label>
           ))}
@@ -628,7 +630,7 @@ export function GuardrailConsole({
           <table className="w-full min-w-[480px] text-left text-sm">
             <thead>
               <tr className="border-b text-xs text-muted-foreground">
-                <th className="p-2">Metric</th>
+                <th className="p-2">{ar ? "المقياس" : "Metric"}</th>
                 {matrix.map((m) => (
                   <th key={m.name} className="p-2">
                     {m.name}
@@ -638,7 +640,7 @@ export function GuardrailConsole({
             </thead>
             <tbody>
               <tr className="border-b">
-                <td className="p-2">Local heuristic score</td>
+                <td className="p-2">{ar ? "الدرجة التقديرية المحلية" : "Local heuristic score"}</td>
                 {matrix.map((m) => (
                   <td key={m.name} className="p-2 font-mono">
                     {m.score}/100
@@ -646,7 +648,7 @@ export function GuardrailConsole({
                 ))}
               </tr>
               <tr className="border-b">
-                <td className="p-2">Policy phrase matches</td>
+                <td className="p-2">{ar ? "تطابقات عبارات السياسة" : "Policy phrase matches"}</td>
                 {matrix.map((m) => (
                   <td key={m.name} className="p-2">
                     {m.matched.length}
@@ -654,7 +656,7 @@ export function GuardrailConsole({
                 ))}
               </tr>
               <tr>
-                <td className="p-2">Assessment</td>
+                <td className="p-2">{ar ? "التقييم" : "Assessment"}</td>
                 {matrix.map((m) => (
                   <td key={m.name} className="p-2 text-xs">
                     {m.verdict}
@@ -668,11 +670,10 @@ export function GuardrailConsole({
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="rounded-lg border bg-card p-4">
           <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Custom policy editor
+            {ar ? "محرر السياسات المخصصة" : "Custom policy editor"}
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Policies are browser-local configuration drafts. Saving or enabling them does not
-            enforce them on the AI backend.
+            {ar ? "السياسات مسودات محفوظة في المتصفح فقط، وحفظها أو تفعيلها لا يفرضها على نموذج الذكاء الاصطناعي." : "Policies are browser-local configuration drafts. Saving or enabling them does not enforce them on the AI backend."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -680,10 +681,10 @@ export function GuardrailConsole({
               onClick={exportPolicies}
               className="rounded border px-3 py-2 text-xs hover:bg-accent"
             >
-              Export policies
+              {ar ? "تصدير السياسات" : "Export policies"}
             </button>
             <label className="cursor-pointer rounded border px-3 py-2 text-xs hover:bg-accent">
-              Import policies
+              {ar ? "استيراد السياسات" : "Import policies"}
               <input
                 type="file"
                 accept="application/json,.json"
@@ -700,7 +701,7 @@ export function GuardrailConsole({
                 onClick={resetPolicyEditor}
                 className="rounded border px-3 py-2 text-xs hover:bg-accent"
               >
-                New policy / cancel edit
+                {ar ? "سياسة جديدة / إلغاء التعديل" : "New policy / cancel edit"}
               </button>
             )}
           </div>
@@ -714,15 +715,15 @@ export function GuardrailConsole({
               value={policyName}
               onChange={(e) => setPolicyName(e.target.value)}
               className="rounded-md border bg-background px-3 py-2 text-sm"
-              aria-label="Policy name"
+              aria-label={ar ? "اسم السياسة" : "Policy name"}
             />
             <select
               value={policyMode}
               onChange={(e) => setPolicyMode(e.target.value as typeof policyMode)}
               className="rounded-md border bg-background px-3 py-2 text-sm"
             >
-              <option value="json">JSON policy</option>
-              <option value="natural">Natural language</option>
+              <option value="json">{ar ? "سياسة JSON" : "JSON policy"}</option>
+              <option value="natural">{ar ? "لغة طبيعية" : "Natural language"}</option>
             </select>
           </div>
           <textarea
@@ -735,7 +736,7 @@ export function GuardrailConsole({
                 ? "Describe safety boundaries in plain language…"
                 : "Enter a JSON policy object…"
             }
-            aria-label="Policy content"
+            aria-label={ar ? "محتوى السياسة" : "Policy content"}
           />
           {policyError && (
             <p role="alert" className="mt-2 text-sm text-destructive">
@@ -762,7 +763,7 @@ export function GuardrailConsole({
                 </span>
                 <div className="flex gap-3">
                   <button className="text-xs underline" onClick={() => startEditingPolicy(policy)}>
-                    Edit
+                    {ar ? "تعديل" : "Edit"}
                   </button>
                   <button
                     className="text-xs underline"
@@ -774,7 +775,7 @@ export function GuardrailConsole({
                     className="text-xs text-destructive underline"
                     onClick={() => deletePolicy(policy)}
                   >
-                    Delete
+                    {ar ? "حذف" : "Delete"}
                   </button>
                 </div>
               </div>
@@ -789,7 +790,7 @@ export function GuardrailConsole({
         </section>
         <section className="rounded-lg border bg-card p-4">
           <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Intent drift alert
+            {ar ? "تنبيه انحراف النية" : "Intent drift alert"}
           </h3>
           <div className="mt-3 flex items-center justify-between">
             <label className="text-sm">
@@ -806,7 +807,7 @@ export function GuardrailConsole({
           </div>
           <div className="mt-3 rounded-md bg-muted p-3">
             <div className="text-xs text-muted-foreground">
-              Estimated drift from current workbench risk/findings, not historical telemetry
+              {ar ? "انحراف تقديري من المخاطر والملاحظات الحالية، وليس من بيانات تاريخية" : "Estimated drift from current workbench risk/findings, not historical telemetry"}
             </div>
             <div className="mt-1 text-2xl font-semibold">{driftRate}%</div>
             <div className="mt-1 text-xs">
@@ -827,25 +828,24 @@ export function GuardrailConsole({
             onClick={sendAlert}
             className="mt-3 rounded-md border px-3 py-2 text-sm hover:bg-accent"
           >
-            Send test alert if threshold crossed
+            {ar ? "أرسل تنبيهًا تجريبيًا عند تجاوز الحد" : "Send test alert if threshold crossed"}
           </button>
           {alertStatus && <p className="mt-2 text-sm">{alertStatus}</p>}
           <p className="mt-2 text-xs text-muted-foreground">
-            Slack/email delivery requires a trusted server-side adapter. Never place tokens in
-            browser code.
+            {ar ? "إرسال التنبيهات عبر Slack أو البريد يتطلب خادمًا موثوقًا. لا تضع المفاتيح في المتصفح." : "Slack/email delivery requires a trusted server-side adapter. Never place tokens in browser code."}
           </p>
         </section>
       </div>
       <section className="rounded-lg border bg-card p-4">
         <h3 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-          Prompt sandbox
+          {ar ? "بيئة تجربة الأمر" : "Prompt sandbox"}
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
           Calls the configured AI server function and requires server-side LOVABLE_API_KEY.
         </p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <label className="text-sm font-medium">
-            System prompt
+            {ar ? "تعليمات النظام" : "System prompt"}
             <textarea
               rows={5}
               value={sandboxSystem}
@@ -854,7 +854,7 @@ export function GuardrailConsole({
             />
           </label>
           <label className="text-sm font-medium">
-            User prompt
+            {ar ? "رسالة المستخدم" : "User prompt"}
             <textarea
               rows={5}
               value={sandboxUser}
@@ -873,7 +873,7 @@ export function GuardrailConsole({
         {sandboxError && <p className="mt-2 text-sm text-destructive">{sandboxError}</p>}
         {sandboxOutput && (
           <div className="mt-3 rounded-md border p-3">
-            <div className="mb-2 text-xs text-muted-foreground">Actual model response</div>
+            <div className="mb-2 text-xs text-muted-foreground">{ar ? "استجابة النموذج الفعلية" : "Actual model response"}</div>
             <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-sm">
               {sandboxOutput}
             </pre>
@@ -881,8 +881,7 @@ export function GuardrailConsole({
         )}
       </section>
       <p className="text-xs text-muted-foreground">
-        Without an SSE URL, logs are local demo/sample events. WebSocket transport and server-side
-        alert delivery still require backend endpoints.
+        {ar ? "بدون رابط بث، السجلات أمثلة تجريبية محلية. إرسال التنبيهات الحي يتطلب خادمًا." : "Without an SSE URL, logs are local demo/sample events. WebSocket transport and server-side alert delivery still require backend endpoints."}
       </p>
     </div>
   );
