@@ -639,7 +639,7 @@ function GovernancePanels({ result, lang }: { result: PromptIRResult; lang: Lang
         )}
       </Card>
       <Card
-        title="Decision Engine"
+        title={ar ? "محرك القرار" : "Decision Engine"}
         right={
           <span className="rounded bg-secondary px-2 py-1 text-xs">
             {result.decisions.length} {ar ? "قرار مكوّن" : "component decisions"}
