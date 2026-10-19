@@ -342,6 +342,49 @@ export function Workbench() {
     models: lang === "ar" ? "النماذج وواجهات API والتخزين السحابي" : "Models, APIs & Cloud Storage",
   };
 
+  // GSAP shiny theme: entrance, looping shine sweep, and tab content transitions.
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    const ctx = gsap.context(() => {
+      gsap.from(".workbench-sidebar", { x: -40, opacity: 0, duration: 0.7, ease: "power3.out" });
+      gsap.from(".workbench-side-item", {
+        x: -20,
+        opacity: 0,
+        duration: 0.5,
+        stagger: 0.06,
+        delay: 0.2,
+        ease: "power2.out",
+      });
+      gsap.from(".workbench-brand > *", { y: 24, opacity: 0, duration: 0.8, stagger: 0.12, ease: "power3.out" });
+      gsap.fromTo(
+        ".workbench-shine",
+        { "--shine-x": "-60%" },
+        { "--shine-x": "160%", duration: 3.2, ease: "power1.inOut", repeat: -1, repeatDelay: 1.8 },
+      );
+      gsap.to(".workbench-sidebar-brand svg", {
+        rotate: 360,
+        duration: 12,
+        ease: "none",
+        repeat: -1,
+      });
+    }, root);
+    return () => ctx.revert();
+  }, []);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    gsap.fromTo(el, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" });
+    gsap.fromTo(
+      ".workbench-side-active",
+      { "--glow": 0 },
+      { "--glow": 1, duration: 0.6, ease: "power2.out" },
+    );
+  }, [tab]);
+
   return (
     <div ref={containerRef} className="workbench workbench-shell min-h-screen bg-background text-foreground">
       <aside className="workbench-sidebar" aria-label="Workbench">
