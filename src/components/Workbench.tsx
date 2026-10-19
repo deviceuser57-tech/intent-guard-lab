@@ -349,16 +349,17 @@ export function Workbench() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) return;
     const ctx = gsap.context(() => {
-      gsap.from(".workbench-sidebar", { x: -40, opacity: 0, duration: 0.7, ease: "power3.out" });
-      gsap.from(".workbench-side-item", {
-        x: -20,
-        opacity: 0,
+      gsap.fromTo(".workbench-sidebar", { x: -40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out", clearProps: "transform,opacity" });
+      gsap.fromTo(".workbench-side-item", { x: -20, opacity: 0 }, {
+        x: 0,
+        opacity: 1,
+        clearProps: "transform,opacity",
         duration: 0.5,
         stagger: 0.06,
         delay: 0.2,
         ease: "power2.out",
       });
-      gsap.from(".workbench-brand > *", { y: 24, opacity: 0, duration: 0.8, stagger: 0.12, ease: "power3.out" });
+      gsap.fromTo(".workbench-brand > *", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, stagger: 0.12, ease: "power3.out", clearProps: "transform,opacity" });
       gsap.fromTo(
         ".workbench-shine",
         { "--shine-x": "-60%" },
