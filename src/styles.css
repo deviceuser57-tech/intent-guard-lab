@@ -348,12 +348,12 @@
   font-weight: 600;
   color: color-mix(in oklch, var(--brand-foreground) 85%, transparent);
   overflow: hidden;
-  transition: background 0.25s, color 0.25s, transform 0.25s;
+  transition: background 0.25s, color 0.25s, padding 0.25s;
 }
 .workbench-side-item:hover {
   background: color-mix(in oklch, var(--brand-foreground) 12%, transparent);
   color: var(--brand-foreground);
-  transform: translateX(3px);
+  padding-inline-start: 16px;
 }
 .workbench-side-dot {
   width: 9px;
