@@ -1,6 +1,6 @@
 import { analyzeIntent } from "./intentAnalyzer";
 import { defaultSpec, DEFAULT_ADV } from "./compiler";
-import type { Archetype, Specification, AdvancedControls } from "./types";
+import type { Archetype, IntentAnalysis, Specification, AdvancedControls } from "./types";
 
 export interface AssistantAnswers {
   deliverable: string;
@@ -14,6 +14,21 @@ export interface AssistantDraft {
   source: string;
   specification: Specification;
   inputValues: Record<string, string>;
+}
+export interface AdoptedAssistantDraft {
+  source: string;
+  analysis: IntentAnalysis;
+  specification: Specification;
+  inputValues: Record<string, string>;
+}
+
+export function prepareAssistantAdoption(draft: AssistantDraft): AdoptedAssistantDraft {
+  return {
+    source: draft.source,
+    analysis: analyzeIntent(draft.specification.goal, draft.specification.archetype),
+    specification: draft.specification,
+    inputValues: { ...draft.inputValues },
+  };
 }
 
 export function synthesizeRequest(source: string, answers: AssistantAnswers, documents: AdvancedControls["documents"], language: "ar" | "en", override?: Archetype): AssistantDraft {
