@@ -77,6 +77,12 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
         {text("Attach inputs", "إرفاق المدخلات")}
         <input type="file" multiple accept=".xlsx,.xlsm,.txt,.md,.csv,.json" aria-label={text("Assistant reference files", "ملفات المساعد المرجعية")} disabled={busy} onChange={upload} className="min-w-0 max-w-full text-xs" />
       </label>
+      <p className="text-xs text-muted-foreground">
+        {text(
+          "Files are read locally in this browser. Their extracted content is sent to a model provider only if you later run the prompt live.",
+          "تُقرأ الملفات محليًا في هذا المتصفح. ولا يُرسل محتواها المستخرج إلى مزود نموذج إلا إذا شغّلت المطالبة لاحقًا على نموذج حي.",
+        )}
+      </p>
       {busy && <p role="status" className="text-sm text-muted-foreground">{text("Reading files…", "جارٍ قراءة الملفات…")}</p>}
       <ul className="space-y-1">
         {documents.map(d => <li key={d.name} className="flex items-center gap-2 border-b py-2 text-xs"><FileSpreadsheet className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 break-all">{d.name}</span><Button size="icon" variant="ghost" aria-label={`${text("Remove", "حذف")} ${d.name}`} onClick={() => setDocuments(current => current.filter(f => f.name !== d.name))}><X className="h-4 w-4" /></Button></li>)}

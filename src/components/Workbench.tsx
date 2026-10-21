@@ -42,7 +42,9 @@ import {
 } from "@/lib/prompt/providerTypes";
 import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdapters";
 import { HelpUserGuide } from "@/components/HelpUserGuide";
+import { RequestAssistant } from "@/components/RequestAssistant";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
+import { prepareAssistantAdoption } from "@/lib/prompt/requestAssistant";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, FileCode2, Globe2 } from "lucide-react";
 
@@ -238,6 +240,8 @@ export function Workbench() {
   const [override, setOverride] = useState<Archetype | "">("");
   const [analysis, setAnalysis] = useState<IntentAnalysis | null>(null);
   const [spec, setSpec] = useState<Specification | null>(null);
+  const [playgroundInitialValues, setPlaygroundInitialValues] = useState<Record<string, string>>({});
+  const [playgroundRevision, setPlaygroundRevision] = useState(0);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -279,6 +283,8 @@ export function Workbench() {
     const a = analyzeIntent(input, override || null);
     const sp = defaultSpec(input, a);
     setAiOv(null);
+    setPlaygroundInitialValues({});
+    setPlaygroundRevision((revision) => revision + 1);
     setAnalysis(a);
     setSpec(sp);
     setDSpec(sp);
@@ -460,6 +466,24 @@ export function Workbench() {
               </Button>
             </div>
           </div>
+          <RequestAssistant
+            lang={lang}
+            input={input}
+            override={override}
+            onInput={setInput}
+            onAdopt={(draft) => {
+              const adopted = prepareAssistantAdoption(draft);
+              setInput(adopted.source);
+              setOverride(adopted.specification.archetype);
+              setAiOv(null);
+              setAnalysis(adopted.analysis);
+              setSpec(adopted.specification);
+              setDSpec(adopted.specification);
+              setPlaygroundInitialValues(adopted.inputValues);
+              setPlaygroundRevision((revision) => revision + 1);
+              setTab("compiled");
+            }}
+          />
           {analysis && report && evalR && (
             <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
               <Stat
@@ -529,7 +553,13 @@ export function Workbench() {
               </div>
             ) : tab === "playground" ? (
               <div className="space-y-4">
-                <Playground c={compiled} t={t} providerConfig={providerConfig} />
+                <Playground
+                  key={playgroundRevision}
+                  c={compiled}
+                  t={t}
+                  providerConfig={providerConfig}
+                  initialValues={playgroundInitialValues}
+                />
                 {governance && <GovernancePanels result={governance} lang={lang} />}
               </div>
             ) : (
@@ -1843,10 +1873,12 @@ function Playground({
   c,
   t,
   providerConfig,
+  initialValues,
 }: {
   c: NonNullable<ReturnType<typeof compile>>;
   t: (k: string) => string;
   providerConfig: ModelProviderConfig;
+  initialValues: Record<string, string>;
 }) {
   const run = useServerFn(runPrompt);
   const judge = useServerFn(judgeOutput);
@@ -1857,7 +1889,7 @@ function Playground({
       ),
     [c],
   );
-  const [vals, setVals] = useState<Record<string, string>>({});
+  const [vals, setVals] = useState<Record<string, string>>(initialValues);
   const [out, setOut] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");

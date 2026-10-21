@@ -1,30 +1,28 @@
--- Run this migration in the user's Supabase SQL editor before enabling cloud registry sync.
--- RLS is owner-scoped: each authenticated user can only access their own registry snapshot.
-create table if not exists public.intent_guard_registry (
+-- Canonical per-user registry table used by src/lib/cloudRegistry.ts and
+-- drizzle/migrations/0000_prompt_registries.sql. Apply the Drizzle migration
+-- OR this SQL setup, not both, before enabling cloud registry sync.
+-- RLS is owner-scoped: each authenticated user can only access their own snapshot.
+create table if not exists public.prompt_registries (
   user_id uuid primary key references auth.users(id) on delete cascade,
   registry jsonb not null default '{"assets":[],"audit":[]}'::jsonb,
   updated_at timestamptz not null default now()
 );
 
-alter table public.intent_guard_registry enable row level security;
-
-drop policy if exists "Users can read own registry" on public.intent_guard_registry;
+alter table public.prompt_registries enable row level security;
+drop policy if exists "Users can read own registry" on public.prompt_registries;
 create policy "Users can read own registry"
-  on public.intent_guard_registry for select
+  on public.prompt_registries for select
   to authenticated using (auth.uid() = user_id);
-
-drop policy if exists "Users can insert own registry" on public.intent_guard_registry;
+drop policy if exists "Users can insert own registry" on public.prompt_registries;
 create policy "Users can insert own registry"
-  on public.intent_guard_registry for insert
+  on public.prompt_registries for insert
   to authenticated with check (auth.uid() = user_id);
-
-drop policy if exists "Users can update own registry" on public.intent_guard_registry;
+drop policy if exists "Users can update own registry" on public.prompt_registries;
 create policy "Users can update own registry"
-  on public.intent_guard_registry for update
+  on public.prompt_registries for update
   to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-revoke all on public.intent_guard_registry from anon;
-grant select, insert, update on public.intent_guard_registry to authenticated;
+revoke all on public.prompt_registries from anon;
+grant select, insert, update on public.prompt_registries to authenticated;
 
 -- Optional shared workspaces. Members must already have Supabase Auth accounts.
 create table if not exists public.intent_guard_workspaces (
