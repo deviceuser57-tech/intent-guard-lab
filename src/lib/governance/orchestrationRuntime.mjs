@@ -21,6 +21,7 @@ function snapshot(run, updates) {
     ...updates,
     steps: Object.freeze((updates.steps ?? run.steps).map((step) => Object.freeze({
       ...step,
+      dependsOn: Object.freeze([...step.dependsOn]),
       attempts: Object.freeze([...step.attempts]),
       evidence: Object.freeze([...step.evidence]),
     }))),
@@ -66,6 +67,18 @@ export function createOrchestrationRun(plan, options = {}) {
       }
     }
   }
+  const byId = new Map(steps.map((step) => [step.id, step]));
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (id) => {
+    if (visiting.has(id)) throw new TypeError("Orchestration dependency cycle detected");
+    if (visited.has(id)) return;
+    visiting.add(id);
+    for (const dependency of byId.get(id).dependsOn) visit(dependency);
+    visiting.delete(id);
+    visited.add(id);
+  };
+  for (const step of steps) visit(step.id);
   const needsApproval = Boolean(plan.requiresHumanApproval);
   const run = {
     id: requiredString(options.runId ?? `${plan.id}-run`, "run id"),
