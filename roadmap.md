@@ -9,7 +9,7 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [x] Latest known CI and prompt-engine regression workflows passed on the earlier recorded head; re-check after the current changes.
 - [ ] Rotate any credentials that were ever committed and confirm no deployment/collaborator dependency remains before purging sensitive history.
 - [ ] Review dependency and client/server secret boundaries; keep privileged credentials server-side.
-- [x] Re-ran dependency installation, tests, lint, and production build through GitHub Actions on commit `5bc6d8f0f84d2f348fc5c7718feca8e3b151d470`; CI and prompt-engine regression workflows passed. Re-run after any subsequent source changes.
+- [x] Re-ran dependency installation, tests, lint, and production build through GitHub Actions on commit `67b3612fd103e22c9645ff2127e3c931f6d0bb50`; both CI and prompt-engine regression workflows passed. Re-run after any subsequent source changes.
 
 ## 01 — Free guided assistant and specification preservation
 - [x] Bilingual templates, matching suggestions, and step-by-step request questions exist.
