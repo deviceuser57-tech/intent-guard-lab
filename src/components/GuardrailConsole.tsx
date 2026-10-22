@@ -9,6 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { runPrompt } from "@/lib/ai.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { parseTelemetryEvent } from "@/lib/guardrail-telemetry.mjs";
 
 type LogLevel = "info" | "high-risk" | "intent-drift" | "policy-violation";
 type AuditLog = { id: string; time: string; level: LogLevel; message: string; source: string };
@@ -185,24 +186,28 @@ export function GuardrailConsole({
       source.onopen = () => setStreamState("Connected to SSE");
       source.onerror = () => setStreamState("SSE connection error / reconnecting");
       source.onmessage = (event) => {
-        let parsed: Partial<AuditLog> = {};
-        try {
-          parsed = JSON.parse(event.data) as Partial<AuditLog>;
-        } catch {
-          /* plain-text SSE */
+        const parsed = parseTelemetryEvent(event.data);
+        if (!parsed) {
+          setLogs((current) =>
+            [
+              {
+                id: crypto.randomUUID(),
+                time: new Date().toISOString(),
+                level: "high-risk",
+                message: "Rejected malformed or oversized SSE event.",
+                source: "telemetry validator",
+              },
+              ...current,
+            ].slice(0, 500),
+          );
+          return;
         }
-        const allowed: LogLevel[] = ["info", "high-risk", "intent-drift", "policy-violation"];
-        const eventLevel = allowed.includes(parsed.level as LogLevel)
-          ? (parsed.level as LogLevel)
-          : "info";
         setLogs((current) =>
           [
             {
               id: crypto.randomUUID(),
               time: new Date().toISOString(),
-              level: eventLevel,
-              message: parsed.message ?? event.data,
-              source: parsed.source ?? "SSE",
+              ...parsed,
             },
             ...current,
           ].slice(0, 500),
