@@ -82,3 +82,45 @@ test("high-risk orchestration requires approval and respects dependency completi
   assert.equal(canRunOrchestrationStep(plan, "verify", []).allowed, false);
   assert.equal(canRunOrchestrationStep(plan, "verify", ["extract"]).allowed, true);
 });
+
+
+test("profile diffs show added and removed principles and limitations", async () => {
+  const { createCognitiveProfile, diffCognitiveProfiles } = await import("../src/lib/governance/controlPlane.mjs");
+  const before = createCognitiveProfile({
+    id: "profile", version: 1, name: "Base", principles: ["ground claims", "cite sources"], limitations: ["no tool authority"],
+  });
+  const after = createCognitiveProfile({
+    id: "profile", version: 2, name: "Research", principles: ["ground claims", "state unknowns"], limitations: ["no tool authority", "no policy override"],
+  });
+  const diff = diffCognitiveProfiles(before, after);
+  assert.deepEqual(diff.principles.added, ["state unknowns"]);
+  assert.deepEqual(diff.principles.removed, ["cite sources"]);
+  assert.deepEqual(diff.limitations.added, ["no policy override"]);
+  assert.equal(diff.nameChanged, true);
+  assert.equal(Object.isFrozen(diff), true);
+});
+
+test("rollback creates a new version and preserves history", async () => {
+  const { createCognitiveProfile, rollbackCognitiveProfile } = await import("../src/lib/governance/controlPlane.mjs");
+  const v1 = createCognitiveProfile({ id: "p", version: 1, name: "Base", principles: ["truth"], limitations: ["no authority"] });
+  const v2 = createCognitiveProfile({ id: "p", version: 2, name: "Changed", principles: ["speed"], limitations: ["no authority"] });
+  const rolledBack = rollbackCognitiveProfile([v1, v2], 1, "reviewer-2");
+  assert.equal(rolledBack.version, 3);
+  assert.equal(rolledBack.name, "Base");
+  assert.deepEqual(rolledBack.principles, ["truth"]);
+  assert.deepEqual(rolledBack.rollback, {
+    restoredContentFromVersion: 1, supersedesVersion: 2, actorId: "reviewer-2",
+  });
+  assert.equal(v1.version, 1);
+  assert.equal(v2.version, 2);
+});
+
+test("rollback rejects unknown targets, duplicate versions, and cross-profile histories", async () => {
+  const { createCognitiveProfile, rollbackCognitiveProfile } = await import("../src/lib/governance/controlPlane.mjs");
+  const v1 = createCognitiveProfile({ id: "p", version: 1, name: "Base", principles: ["truth"], limitations: ["no authority"] });
+  const v2 = createCognitiveProfile({ id: "p", version: 2, name: "Changed", principles: ["speed"], limitations: ["no authority"] });
+  assert.throws(() => rollbackCognitiveProfile([v1, v2], 8, "reviewer"), /target version/);
+  assert.throws(() => rollbackCognitiveProfile([v1, v1], 1, "reviewer"), /Duplicate profile version/);
+  const other = createCognitiveProfile({ id: "other", version: 2, name: "Other", principles: ["truth"], limitations: ["no authority"] });
+  assert.throws(() => rollbackCognitiveProfile([v1, other], 1, "reviewer"), /one profile/);
+});
