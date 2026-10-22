@@ -37,7 +37,7 @@ test("defaults unknown levels and bounds attacker-controlled fields", () => {
 });
 
 test("strips unsafe control characters from plain-text events", () => {
-  assert.deepEqual(parseTelemetryEvent("hello\\u0000world"), {
+  assert.deepEqual(parseTelemetryEvent("hello\u0000world"), {
     level: "info",
     message: "helloworld",
     source: "SSE",
