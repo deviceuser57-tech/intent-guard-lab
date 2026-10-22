@@ -100,3 +100,17 @@ test("dependencies cannot be spoofed by caller-supplied completion identifiers",
   const run = createOrchestrationRun(plan());
   assert.throws(() => startOrchestrationStep(run, "verify"), /Dependencies incomplete/);
 });
+
+
+test("run creation rejects cyclic dependencies and freezes dependency lists", () => {
+  assert.throws(() => createOrchestrationRun({
+    id: "cycle",
+    requiresHumanApproval: false,
+    steps: [
+      { id: "a", specialist: "worker", objective: "A", dependsOn: ["b"] },
+      { id: "b", specialist: "worker", objective: "B", dependsOn: ["a"] },
+    ],
+  }), /dependency cycle/);
+  const run = createOrchestrationRun(plan());
+  assert.equal(Object.isFrozen(run.steps[1].dependsOn), true);
+});
