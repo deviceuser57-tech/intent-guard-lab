@@ -97,11 +97,11 @@ export function filterRetrievedDocuments(documents, context = {}) {
 export function retrieveKnowledge(query, documents, context = {}) {
   const normalizedQuery = typeof query === "string" ? query.trim().toLowerCase() : "";
   if (!normalizedQuery) throw new TypeError("Retrieval query must be non-empty");
-  const queryTerms = new Set(normalizedQuery.split(/[^\\p{L}\\p{N}_-]+/u).filter((term) => term.length > 1));
+  const queryTerms = new Set(normalizedQuery.split(/[^\p{L}\p{N}_-]+/u).filter((term) => term.length > 1));
   const allowed = filterRetrievedDocuments(documents, context);
   return allowed
     .map((doc) => {
-      const contentTerms = new Set(doc.content.toLowerCase().split(/[^\\p{L}\\p{N}_-]+/u).filter((term) => term.length > 1));
+      const contentTerms = new Set(doc.content.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((term) => term.length > 1));
       let overlap = 0;
       for (const term of queryTerms) if (contentTerms.has(term)) overlap += 1;
       const relevance = queryTerms.size ? overlap / queryTerms.size : 0;
