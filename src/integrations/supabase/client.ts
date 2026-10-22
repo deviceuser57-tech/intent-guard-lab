@@ -74,6 +74,12 @@ function createSupabaseClient() {
   });
 }
 
+export const isSupabaseConfigured = Boolean(
+  import.meta.env['VITE_SUPABASE_URL'] || (typeof process !== 'undefined' && process.env['SUPABASE_URL']),
+) && Boolean(
+  import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || (typeof process !== 'undefined' && process.env['SUPABASE_PUBLISHABLE_KEY']),
+);
+
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
 
 // Import the supabase client like this:
