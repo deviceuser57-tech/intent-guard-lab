@@ -78,7 +78,7 @@ async function readDocx(file: File): Promise<string> {
   visit(xml.documentElement, { text: "" });
   const extracted = paragraphs.join("\n");
   if (!extracted.trim()) throw new Error(file.name + ": No readable text found in DOCX");
-  return "Word document text extract only; embedded images, tracked changes and document formatting are not analyzed. / استخراج النص فقط؛ لا يتم تحليل الصور المضمنة أو تعقّب التغييرات أو تنسيق المستند.\\n" + extracted;
+  return "Word document text extract only; embedded images, tracked changes and document formatting are not analyzed. / استخراج النص فقط؛ لا يتم تحليل الصور المضمنة أو تعقّب التغييرات أو تنسيق المستند.\n" + extracted;
 }
 
 export async function readAssistantFile(file: File): Promise<AdvancedControls["documents"][number]> {
