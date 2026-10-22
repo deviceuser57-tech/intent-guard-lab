@@ -90,7 +90,7 @@ export function approveOrchestrationRun(run, approverId) {
   return snapshot(next, { events: [...run.events, event(run, "human_approved", null, { approvedBy })] });
 }
 
-export function startOrchestrationStep(run, stepId, completedStepIds = []) {
+export function startOrchestrationStep(run, stepId) {
   if (!run || run.status !== "ready" && run.status !== "running") {
     throw new Error("Run is not ready to execute");
   }
@@ -101,7 +101,7 @@ export function startOrchestrationStep(run, stepId, completedStepIds = []) {
   if (step.status !== "planned" && step.status !== "retryable") {
     throw new Error("Step is not eligible to start");
   }
-  const completed = new Set(completedStepIds);
+  const completed = new Set(run.steps.filter((item) => item.status === "verified").map((item) => item.id));
   const missing = step.dependsOn.filter((dependency) => !completed.has(dependency));
   if (missing.length) throw new Error(`Dependencies incomplete: ${missing.join(", ")}`);
   const steps = run.steps.map((item, i) => i === index ? { ...item, status: "running", error: null } : item);
@@ -159,14 +159,16 @@ export function verifyOrchestrationStep(run, stepId, result) {
   const step = run.steps[index];
   if (step.status !== "awaiting_verification") throw new Error("Step is not awaiting verification");
   if (!result || typeof result.passed !== "boolean") throw new TypeError("Verification must specify passed as a boolean");
+  const canRetry = !result.passed && step.attempts.length <= run.maxRetries;
   const updated = {
     ...step,
-    status: result.passed ? "verified" : "retryable",
+    status: result.passed ? "verified" : canRetry ? "retryable" : "failed",
     verification: result.passed ? "passed" : "failed",
     error: result.passed ? null : String(result.reason ?? "Verification failed").slice(0, 1000),
   };
   const steps = run.steps.map((item, i) => i === index ? updated : item);
-  const next = { ...run, status: steps.every((item) => item.status === "verified") ? "succeeded" : "running", steps };
+  const nextStatus = steps.some((item) => item.status === "failed") ? "failed" : steps.every((item) => item.status === "verified") ? "succeeded" : "running";
+  const next = { ...run, status: nextStatus, steps };
   return snapshot(next, { events: [...run.events, event(run, "verification_recorded", id, {
     passed: result.passed, reason: updated.error,
   })] });
