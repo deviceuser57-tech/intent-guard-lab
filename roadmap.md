@@ -32,6 +32,8 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Verify RTL layout at desktop and narrow widths.
 - [ ] Add stable reference cases for supported task archetypes, ambiguous requests, prompt injection, missing evidence, and analyzer disagreement.
 - [ ] Confirm no visible diagnostic falls back to untranslated internal identifiers.
+- [x] Add a regression test requiring Arabic and English UI dictionaries to expose identical key sets.
+- [x] Add Arabic reference cases for translation and research classification, Arabic language detection, and safety-risk detection.
 
 ## 04 — DNA, persona, and governed learning
 - [ ] Define versioned cognitive-profile/DNA and persona schemas with explicit precedence and compatibility rules.
