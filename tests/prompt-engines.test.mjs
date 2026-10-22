@@ -316,3 +316,50 @@ test("evaluation metrics and token totals remain internally consistent", () => {
     "tokenEfficiency",
   ]);
 });
+
+
+globalThis.__intentGuardTestAnalyzerAudit = analyzerAuditModule;
+globalThis.__intentGuardTestReadiness = readinessModule;
+const promptIRModule = await loadTypeScript("src/lib/prompt/ir.ts", (source) =>
+  source
+    .replace(
+      'import { analyzeIntent, decideComponents } from "./decisionEngine";',
+      "const { analyzeIntent, decideComponents } = globalThis.__intentGuardTestDecisionEngine;",
+    )
+    .replace(
+      'import { auditIntentAnalyzers, type AnalyzerAudit } from "./analyzerAudit";',
+      "const { auditIntentAnalyzers } = globalThis.__intentGuardTestAnalyzerAudit;",
+    )
+    .replace(
+      'import { lintPrompt } from "./linter";',
+      "const { lintPrompt } = globalThis.__intentGuardTestLinter;",
+    )
+    .replace(
+      'import { assessReadiness } from "./readiness";',
+      "const { assessReadiness } = globalThis.__intentGuardTestReadiness;",
+    )
+    .replace('import type { Specification as WorkbenchSpecification } from "./types";', "")
+    .replace('import type {\n  PromptSpecification,\n  TaskType as IRTaskType,\n  IntentAnalysis as IRIntentAnalysis,\n  ValidationFinding,\n  ReadinessAssessment,\n  PromptComponentDecision,\n} from "./specification";', ""),
+);
+
+test("canonical Prompt IR enables injection and data-leakage protections by default", () => {
+  const result = promptIRModule.buildPromptIR(
+    "Review the supplied documents and explain the findings.",
+    {
+      goal: "Review supplied documents and explain findings with traceable evidence.",
+      archetype: "research",
+      persona: "Research analyst",
+      audience: "Project team",
+      constraints: ["Do not invent evidence", "Cite source documents", "State unknowns"],
+      reasoning: "brief",
+      outputFormat: "markdown",
+      maxWords: 800,
+      outputSchema: "",
+      examples: "",
+    },
+    "en",
+  );
+  assert.equal(result.specification.security.injectionProtection, true);
+  assert.equal(result.specification.security.dataLeakageProtection, true);
+  assert.equal(result.specification.failureHandling.onSecurityViolation, "refuse");
+});
