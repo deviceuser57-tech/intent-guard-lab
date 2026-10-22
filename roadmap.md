@@ -44,6 +44,8 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Enforce tenant and role filters before retrieval results enter a prompt.
 - [ ] Distinguish retrieved evidence, user-provided facts, model inference, and unknowns in output contracts.
 - [ ] Add tests for inaccessible documents, stale/duplicate evidence, empty retrieval, prompt injection in retrieved content, and traceability.
+- [x] Add a deterministic evidence policy utility that filters tenant/source/authorization boundaries, rejects stale or provenance-free retrieved records, deduplicates records, bounds excerpts, and labels user claims separately from retrieved evidence.
+- [x] Add an explicit output epistemic contract for user-provided facts, retrieved evidence, model inference, unknowns, and citation requirements.
 - [ ] Define retention/deletion behavior for any persisted memory or retrieved content.
 
 ## 06 — Orchestration and multimodal
@@ -51,6 +53,7 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Make plan steps, tool calls, evidence, and verification results inspectable.
 - [ ] Add multimodal ingestion incrementally with explicit capability limits and source traceability.
 - [ ] Add deterministic tests for routing, tool failure, cancellation, retry bounds, and verification failure.
+- [x] Add a deterministic orchestration run state machine with human approval gates, dependency checks based on recorded verified steps, bounded retries, verification state, evidence snapshots, immutable returned snapshots, cancellation, and terminal-state guards. This records state only; it does not execute tools or persist authoritative audit records.
 
 ## 07 — Enterprise governance
 - [x] Local Guardrails console includes an audit-log UI, severity filters/search, SSE connection, policy drafts, JSON/CSV export, webhook test alerts, and a sandbox/model-output comparison interface.
