@@ -27,7 +27,7 @@ const assistant = await loadTypeScript("src/lib/prompt/requestAssistant.ts", (so
     )
     .replace(
       'import { defaultSpec, DEFAULT_ADV } from "./compiler";',
-      "const { defaultSpec, DEFAULT_ADV } = {};",
+      "const DEFAULT_ADV = {}; const defaultSpec = (goal, analysis) => ({ goal, archetype: analysis.archetype });",
     ),
 );
 
@@ -68,6 +68,29 @@ test("adoption preserves the reviewed specification and source", () => {
   assert.deepEqual(adopted.specification.constraints, specification.constraints);
   assert.deepEqual(adopted.specification.advanced, specification.advanced);
   assert.equal(adopted.analysis.archetype, "software");
+});
+
+test("generation keeps an adopted specification until the source changes", () => {
+  const specification = {
+    goal: "Reviewed goal with explicit constraints",
+    archetype: "software",
+    constraints: ["Preserve reviewed constraints"],
+    outputFormat: "json",
+  };
+  const adopted = assistant.prepareAssistantAdoption({
+    source: "Create a reviewed prompt",
+    specification,
+    inputValues: { input: "value" },
+  });
+
+  const unchanged = assistant.resolveAssistantGeneration(adopted.source, "", adopted);
+  assert.equal(unchanged.preserved, true);
+  assert.equal(unchanged.specification, specification);
+  assert.equal(unchanged.analysis, adopted.analysis);
+
+  const changed = assistant.resolveAssistantGeneration("Write a new summary", "", adopted);
+  assert.equal(changed.preserved, false);
+  assert.equal(changed.specification.goal, "Write a new summary");
 });
 
 test("adoption copies variable values for the Playground", () => {
