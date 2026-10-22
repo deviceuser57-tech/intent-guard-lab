@@ -91,3 +91,30 @@ test("rejects whitespace-only policy identifiers and names", () => {
     false,
   );
 });
+
+
+test("normalizes valid policy imports atomically and rejects duplicate identifiers", async () => {
+  const { normalizeImportedPolicies } = await import("../src/lib/guardrail-policy.mjs");
+  const result = normalizeImportedPolicies([
+    { id: " policy-a ", name: " Policy A ", mode: "json", content: valid, enabled: true },
+  ]);
+  assert.equal(result[0].id, "policy-a");
+  assert.equal(result[0].name, "Policy A");
+  assert.equal(Object.isFrozen(result), true);
+  assert.throws(() => normalizeImportedPolicies([
+    { id: "Policy-A", name: "A", mode: "json", content: valid, enabled: true },
+    { id: " policy-a ", name: "B", mode: "json", content: valid, enabled: false },
+  ]), /Duplicate policy id/);
+});
+
+test("rejects oversized or partly invalid imports without returning partial data", async () => {
+  const { normalizeImportedPolicies } = await import("../src/lib/guardrail-policy.mjs");
+  assert.throws(() => normalizeImportedPolicies([]), /non-empty/);
+  assert.throws(() => normalizeImportedPolicies(Array(101).fill({
+    id: "a", name: "A", mode: "json", content: valid, enabled: true,
+  })), /At most 100/);
+  assert.throws(() => normalizeImportedPolicies([
+    { id: "a", name: "A", mode: "json", content: valid, enabled: true },
+    { id: "b", name: "B", mode: "json", content: "{broken", enabled: true },
+  ]), /valid shape and content/);
+});
