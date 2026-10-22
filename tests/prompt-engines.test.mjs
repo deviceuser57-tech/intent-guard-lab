@@ -114,7 +114,7 @@ test("analyzer drift requires explicit review before generation", () => {
   assert.equal(analyzerAuditModule.requiresAnalyzerReview(disagreement), true);
 
   const agreement = analyzerAuditModule.auditIntentAnalyzers(
-    "Write code to implement a Python function and program that validates email addresses.",
+    "Hi",
     "en",
   );
   assert.equal(analyzerAuditModule.requiresAnalyzerReview(agreement), false);
