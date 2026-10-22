@@ -159,7 +159,7 @@ export function recordOrchestrationAttempt(run, stepId, result) {
   };
   const steps = run.steps.map((item, i) => i === index ? updated : item);
   const anyFailed = steps.some((item) => item.status === "failed");
-  const nextStatus = anyFailed ? "failed" : allDone ? "succeeded" : "running";
+  const nextStatus = anyFailed ? "failed" : steps.every((item) => item.status === "verified") ? "succeeded" : "running";
   const next = { ...run, status: nextStatus, steps };
   return snapshot(next, { events: [...run.events, event(run, "attempt_recorded", id, {
     outcome: result.outcome, attempt: attempt.number, retryAvailable: canRetry,
