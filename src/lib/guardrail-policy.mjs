@@ -9,12 +9,12 @@ export function validatePolicy(policy) {
   const candidate = policy;
   return (
     typeof candidate.id === "string" &&
-    Boolean(candidate.id.trim()) &&
+    candidate.id.trim().length > 0 &&
     typeof candidate.name === "string" &&
-    Boolean(candidate.name.trim()) &&
+    candidate.name.trim().length > 0 &&
     (candidate.mode === "json" || candidate.mode === "natural") &&
     typeof candidate.content === "string" &&
-    Boolean(candidate.content.trim()) &&
+    validatePolicyContent(candidate.mode, candidate.content) === null &&
     typeof candidate.enabled === "boolean"
   );
 }
