@@ -45,3 +45,13 @@ export function authorizeOrchestrationStart(plan: { requiresHumanApproval: boole
 export function canRunOrchestrationStep(plan: { steps: Array<{ id: string; dependsOn: string[] }> }, stepId: string, completedStepIds?: string[]): {
   allowed: boolean; reason: "unknown_step" | "dependencies_incomplete" | "dependencies_satisfied"; missingDependencies?: string[];
 };
+
+export interface CognitiveProfileDiff {
+  profileId: string; fromVersion: number; toVersion: number; nameChanged: boolean;
+  principles: { added: readonly string[]; removed: readonly string[] };
+  limitations: { added: readonly string[]; removed: readonly string[] };
+}
+export declare function diffCognitiveProfiles(previous: CognitiveProfile, next: CognitiveProfile): Readonly<CognitiveProfileDiff>;
+export declare function rollbackCognitiveProfile(history: CognitiveProfile[], targetVersion: number, actorId: string): Readonly<CognitiveProfile & {
+  rollback: { restoredContentFromVersion: number; supersedesVersion: number; actorId: string };
+}>;
