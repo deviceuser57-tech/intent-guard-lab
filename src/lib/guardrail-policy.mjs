@@ -89,3 +89,24 @@ export function scoreOutput(value, policyText) {
         : "No output provided.",
   };
 }
+
+
+/** Validate a whole import atomically; duplicate IDs are rejected, not silently overwritten. */
+export function normalizeImportedPolicies(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    throw new TypeError("Expected a non-empty policy array.");
+  }
+  if (entries.length > 100) throw new RangeError("At most 100 policies may be imported at once.");
+  const ids = new Set();
+  return Object.freeze(entries.map((entry) => {
+    if (!validatePolicy(entry)) throw new TypeError("Each imported policy must have a valid shape and content.");
+    const id = entry.id.trim();
+    const name = entry.name.trim();
+    const key = id.toLocaleLowerCase();
+    if (ids.has(key)) throw new TypeError(`Duplicate policy id: ${id}.`);
+    ids.add(key);
+    const contentError = validatePolicyContent(entry.mode, entry.content);
+    if (contentError) throw new TypeError(`${name}: ${contentError}`);
+    return Object.freeze({ id, name, mode: entry.mode, content: entry.content, enabled: entry.enabled });
+  }));
+}
