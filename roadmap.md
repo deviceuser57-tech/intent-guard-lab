@@ -61,7 +61,8 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [x] Incoming SSE events are now parsed through a bounded validator; malformed/oversized structured events are rejected and logged.
 - [ ] Verify Flow Visualizer behavior and ensure each displayed step reflects actual execution rather than illustrative state.
 - [ ] Verify severity filtering, search, SSE reconnect/error behavior, and the 500-event memory bound.
-- [ ] Verify policy editor validation, import/export, duplicate IDs, edits, enable/disable, and browser persistence.
+- [ ] Verify policy editor validation, import/export, edits, enable/disable, and browser persistence.
+- [x] Make policy imports atomic, reject duplicate IDs case-insensitively, cap imports at 100 policies, and validate every imported policy before mutating browser state.
 - [ ] Verify webhook threshold, explicit confirmation, failure reporting, CORS constraints, and safe handling of destinations.
 - [ ] Verify the three-model comparison semantics and keep manual-paste/heuristic scoring clearly labelled.
 - [ ] Implement authenticated server-side telemetry, tenant authorization, redaction, and durable audit storage before production use.
