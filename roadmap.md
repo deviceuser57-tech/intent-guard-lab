@@ -62,7 +62,8 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [x] Local Guardrails console includes an audit-log UI, severity filters/search, SSE connection, policy drafts, JSON/CSV export, webhook test alerts, and a sandbox/model-output comparison interface.
 - [x] React Query is used for local policy query/mutation state.
 - [x] Incoming SSE events are now parsed through a bounded validator; malformed/oversized structured events are rejected and logged.
-- [ ] Verify Flow Visualizer behavior and ensure each displayed step reflects actual execution rather than illustrative state.
+- [ ] Verify Flow Visualizer behavior against actual execution after an execution service is connected.
+- [x] Label the current Flow Visualizer explicitly as an illustrative view derived from current state, not an actual execution trace.
 - [ ] Verify severity filtering, search, SSE reconnect/error behavior, and the 500-event memory bound.
 - [ ] Verify policy editor validation, import/export, edits, enable/disable, and browser persistence.
 - [x] Make policy imports atomic, reject duplicate IDs case-insensitively, cap imports at 100 policies, and validate every imported policy before mutating browser state.
