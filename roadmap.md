@@ -26,6 +26,7 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Replace duplicated/legacy decision paths with one documented source of truth.
 - [ ] Add contract tests for intent classification, component selection, compilation, confidence/evidence, and Arabic/RTL cases.
 - [ ] Verify the canonical IR drives the Workbench, linter, readiness score, exports, and playground consistently.
+- [x] Add the compiler from the `Prompts` domain layer as `canonicalCompiler.ts` and wire the active Workbench compiled artifact to `buildPromptIR`; the same IR result supplies linter findings/readiness and the compiled envelope used by registry, exports, and playground.
 
 ## 03 — Localization and reference tests
 - [ ] Audit every visible diagnostic, validation error, tooltip, empty state, and accessibility label in Arabic and English.
