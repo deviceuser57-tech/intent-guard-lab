@@ -187,3 +187,75 @@ export function authorizeAction(input) {
   if (typeof permission !== "string" || !PERMISSIONS[actor.role].has(permission)) return { allowed: false, reason: "permission_denied" };
   return { allowed: true, reason: "authorized" };
 }
+
+
+/** Compare profile versions without mutating either source object. */
+export function diffCognitiveProfiles(previous, next) {
+  if (!previous || !next || previous.id !== next.id) {
+    throw new TypeError("Profiles must share the same identity to be compared");
+  }
+  if (!Number.isInteger(previous.version) || !Number.isInteger(next.version) || next.version <= previous.version) {
+    throw new TypeError("Next profile version must be greater than the previous version");
+  }
+  const setDiff = (before = [], after = []) => ({
+    added: after.filter((value) => !before.includes(value)),
+    removed: before.filter((value) => !after.includes(value)),
+  });
+  const principles = setDiff(previous.principles, next.principles);
+  const limitations = setDiff(previous.limitations, next.limitations);
+  return Object.freeze({
+    profileId: previous.id,
+    fromVersion: previous.version,
+    toVersion: next.version,
+    nameChanged: previous.name !== next.name,
+    principles: Object.freeze({
+      added: Object.freeze(principles.added),
+      removed: Object.freeze(principles.removed),
+    }),
+    limitations: Object.freeze({
+      added: Object.freeze(limitations.added),
+      removed: Object.freeze(limitations.removed),
+    }),
+  });
+}
+
+/**
+ * Roll back to an earlier approved profile's content by creating a NEW version.
+ * Historical entries are never mutated or deleted.
+ */
+export function rollbackCognitiveProfile(history, targetVersion, actorId) {
+  const actor = nonEmpty(actorId, "rollback actor id");
+  if (!Array.isArray(history) || history.length < 2) {
+    throw new TypeError("At least two profile versions are required for rollback");
+  }
+  const first = history[0];
+  if (!first || typeof first.id !== "string") throw new TypeError("Profile history is invalid");
+  const ids = new Set();
+  const versions = new Set();
+  for (const profile of history) {
+    if (!profile || profile.id !== first.id || !Number.isInteger(profile.version) || profile.version < 1) {
+      throw new TypeError("Profile history must contain valid versions of one profile");
+    }
+    if (ids.has(profile.id + ":" + profile.version)) throw new TypeError("Duplicate profile version");
+    ids.add(profile.id + ":" + profile.version);
+    versions.add(profile.version);
+  }
+  const target = history.find((profile) => profile.version === targetVersion);
+  const latest = history.reduce((current, profile) => profile.version > current.version ? profile : current);
+  if (!target) throw new TypeError("Rollback target version was not found");
+  if (target.version === latest.version) throw new TypeError("Rollback target is already the latest version");
+  return Object.freeze({
+    id: target.id,
+    version: latest.version + 1,
+    name: target.name,
+    principles: Object.freeze([...target.principles]),
+    limitations: Object.freeze([...target.limitations]),
+    securityPolicy: target.securityPolicy,
+    createdAt: new Date().toISOString(),
+    rollback: Object.freeze({
+      restoredContentFromVersion: target.version,
+      supersedesVersion: latest.version,
+      actorId: actor,
+    }),
+  });
+}
