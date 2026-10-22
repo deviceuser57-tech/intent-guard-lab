@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { runPrompt } from "@/lib/ai.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { parseTelemetryEvent } from "@/lib/guardrail-telemetry.mjs";
+import { validateWebhookTarget } from "@/lib/guardrail-webhook.mjs";
 
 type LogLevel = "info" | "high-risk" | "intent-drift" | "policy-violation";
 type AuditLog = { id: string; time: string; level: LogLevel; message: string; source: string };
@@ -333,15 +334,12 @@ export function GuardrailConsole({
       setAlertStatus("Enter a webhook URL first. No alert was sent.");
       return;
     }
-    let target: URL;
-    try {
-      target = new URL(webhookUrl);
-      if (!["https:", "http:"].includes(target.protocol) || target.username || target.password)
-        throw new Error("Use an HTTP(S) URL without embedded credentials.");
-    } catch (error) {
-      setAlertStatus("Invalid webhook URL: " + (error as Error).message);
+    const validation = validateWebhookTarget(webhookUrl);
+    if (!validation.valid || !validation.url) {
+      setAlertStatus("Invalid webhook URL: " + (validation.reason ?? "URL rejected."));
       return;
     }
+    const target = validation.url;
     if (driftRate < driftThreshold) {
       setAlertStatus(
         "Current estimated drift (" +
