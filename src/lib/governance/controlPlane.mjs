@@ -231,14 +231,12 @@ export function rollbackCognitiveProfile(history, targetVersion, actorId) {
   const first = history[0];
   if (!first || typeof first.id !== "string") throw new TypeError("Profile history is invalid");
   const ids = new Set();
-  const versions = new Set();
   for (const profile of history) {
     if (!profile || profile.id !== first.id || !Number.isInteger(profile.version) || profile.version < 1) {
       throw new TypeError("Profile history must contain valid versions of one profile");
     }
     if (ids.has(profile.id + ":" + profile.version)) throw new TypeError("Duplicate profile version");
     ids.add(profile.id + ":" + profile.version);
-    versions.add(profile.version);
   }
   const target = history.find((profile) => profile.version === targetVersion);
   const latest = history.reduce((current, profile) => profile.version > current.version ? profile : current);
