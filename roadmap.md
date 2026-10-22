@@ -63,7 +63,8 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Verify severity filtering, search, SSE reconnect/error behavior, and the 500-event memory bound.
 - [ ] Verify policy editor validation, import/export, edits, enable/disable, and browser persistence.
 - [x] Make policy imports atomic, reject duplicate IDs case-insensitively, cap imports at 100 policies, and validate every imported policy before mutating browser state.
-- [ ] Verify webhook threshold, explicit confirmation, failure reporting, CORS constraints, and safe handling of destinations.
+- [ ] Verify webhook threshold, explicit confirmation, failure reporting, and CORS constraints.
+- [x] Add client-side HTTPS-only webhook validation, reject embedded credentials/fragments and common local/private-network destinations, and retain explicit confirmation and failure reporting. This is defense-in-depth, not a server-side SSRF control.
 - [ ] Verify the three-model comparison semantics and keep manual-paste/heuristic scoring clearly labelled.
 - [ ] Implement authenticated server-side telemetry, tenant authorization, redaction, and durable audit storage before production use.
 - [ ] Implement authoritative versioned policy storage, server-side RBAC, immutable history, and enforcement in the request path.
