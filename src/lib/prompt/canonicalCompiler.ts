@@ -365,7 +365,6 @@ export function compilePromptIR(
     `Language: ${spec.output.language}`,
     ...(spec.output.length?.max ? [`Maximum length: ${spec.output.length.max} ${spec.output.length.unit}`] : []),
     ...(spec.output.validationRules ?? []),
-    ...(spec.outputSchema ? [`Output schema: ${spec.outputSchema}`] : []),
   ].join("\n");
   return {
     system: [compiled.systemPrompt, compiled.promptText].filter(Boolean).join("\n\n"),
