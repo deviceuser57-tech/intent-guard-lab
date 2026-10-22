@@ -35,3 +35,13 @@ export function createOrchestrationPlan(input: OrchestrationPlanInput): Readonly
 export function authorizeAction(input: {
   actor?: { id?: string; role?: string }; tenantId?: string; resourceTenantId?: string; permission?: string;
 }): { allowed: boolean; reason: "invalid_request" | "missing_actor" | "tenant_boundary" | "unknown_role" | "permission_denied" | "authorized" };
+
+export function retrieveKnowledge(query: string, documents: RetrievedDocument[], context: RetrievedContext): ReadonlyArray<{
+  id: string; source: string; content: string; score: number; trust: "untrusted_reference_data"; handling: string; relevance: number;
+}>;
+export function authorizeOrchestrationStart(plan: { requiresHumanApproval: boolean }, approverId?: string): {
+  allowed: boolean; reason: "invalid_plan" | "approval_not_required" | "human_approval_required" | "human_approved"; approvedBy?: string;
+};
+export function canRunOrchestrationStep(plan: { steps: Array<{ id: string; dependsOn: string[] }> }, stepId: string, completedStepIds?: string[]): {
+  allowed: boolean; reason: "unknown_step" | "dependencies_incomplete" | "dependencies_satisfied"; missingDependencies?: string[];
+};
