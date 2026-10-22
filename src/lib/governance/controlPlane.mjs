@@ -93,6 +93,25 @@ export function filterRetrievedDocuments(documents, context = {}) {
     }));
 }
 
+/** Retrieve only policy-authorized documents, then rank them by query relevance. */
+export function retrieveKnowledge(query, documents, context = {}) {
+  const normalizedQuery = typeof query === "string" ? query.trim().toLowerCase() : "";
+  if (!normalizedQuery) throw new TypeError("Retrieval query must be non-empty");
+  const queryTerms = new Set(normalizedQuery.split(/[^\\p{L}\\p{N}_-]+/u).filter((term) => term.length > 1));
+  const allowed = filterRetrievedDocuments(documents, context);
+  return allowed
+    .map((doc) => {
+      const contentTerms = new Set(doc.content.toLowerCase().split(/[^\\p{L}\\p{N}_-]+/u).filter((term) => term.length > 1));
+      let overlap = 0;
+      for (const term of queryTerms) if (contentTerms.has(term)) overlap += 1;
+      const relevance = queryTerms.size ? overlap / queryTerms.size : 0;
+      return { ...doc, relevance, rankScore: relevance * 0.75 + Math.max(0, Math.min(1, doc.score)) * 0.25 };
+    })
+    .sort((a, b) => b.rankScore - a.rankScore)
+    .slice(0, Number.isInteger(context.limit) && context.limit > 0 ? Math.min(context.limit, 50) : 8)
+    .map(({ rankScore, ...doc }) => Object.freeze(doc));
+}
+
 export function createOrchestrationPlan(input) {
   if (!input || typeof input !== "object") throw new TypeError("Plan input is required");
   const task = nonEmpty(input.task, "task");
@@ -138,6 +157,25 @@ export function createOrchestrationPlan(input) {
     steps: Object.freeze(steps),
     toolsAllowed: Object.freeze(Array.isArray(input.toolsAllowed) ? [...new Set(input.toolsAllowed)] : []),
   });
+}
+
+/** High/critical-risk plans cannot start without a distinct human approver. */
+export function authorizeOrchestrationStart(plan, approverId) {
+  if (!plan || typeof plan !== "object") return { allowed: false, reason: "invalid_plan" };
+  if (!plan.requiresHumanApproval) return { allowed: true, reason: "approval_not_required" };
+  if (typeof approverId !== "string" || !approverId.trim()) return { allowed: false, reason: "human_approval_required" };
+  return { allowed: true, reason: "human_approved", approvedBy: approverId.trim() };
+}
+
+/** A step can run only after all dependencies have completed successfully. */
+export function canRunOrchestrationStep(plan, stepId, completedStepIds = []) {
+  const step = plan?.steps?.find((item) => item.id === stepId);
+  if (!step) return { allowed: false, reason: "unknown_step" };
+  const completed = new Set(completedStepIds);
+  const missing = step.dependsOn.filter((id) => !completed.has(id));
+  return missing.length
+    ? { allowed: false, reason: "dependencies_incomplete", missingDependencies: missing }
+    : { allowed: true, reason: "dependencies_satisfied" };
 }
 
 export function authorizeAction(input) {
