@@ -1,0 +1,258 @@
+{
+  "schemaVersion": "1.0.0",
+  "repository": "deviceuser57-tech/intent-guard-lab",
+  "reviewedRevision": "2a16910",
+  "planStatus": "proposed",
+  "sourceUpgradeProposal": "/home/ubuntu/upload/pasted_content.txt",
+  "tasks": [
+    {
+      "id": "SEC-001",
+      "title": "Respond to tracked .env exposure",
+      "priority": "P0",
+      "phase": 0,
+      "status": "proposed",
+      "dependsOn": [],
+      "files": [".env", ".gitignore", ".env.example", ".github/workflows/CI.yml", "docs/security.md"],
+      "actions": [
+        "Revoke and rotate any credentials that may have been committed in .env",
+        "Remove .env from Git without printing its contents",
+        "Ignore .env and .env.* while allowing a sanitized .env.example",
+        "Scan current files and history; coordinate any history purge because Lovable sync is configured",
+        "Enable secret scanning or push protection and add a CI secret scan"
+      ],
+      "acceptanceCriteria": [
+        "No possibly exposed credentials remain usable",
+        ".env is not tracked and is ignored",
+        "A sanitized environment example documents variable names without secret values",
+        "Secret scanning passes on the clean tree"
+      ],
+      "risks": ["History rewrite can disrupt consumers and Lovable synchronization; credential rotation remains mandatory regardless"]
+    },
+    {
+      "id": "UX-001",
+      "title": "Integrate the existing RequestAssistant into Workbench",
+      "priority": "P1",
+      "phase": 1,
+      "status": "proposed",
+      "dependsOn": ["SEC-001"],
+      "files": ["src/components/Workbench.tsx", "src/components/RequestAssistant.tsx", "src/lib/prompt/requestAssistant.ts"],
+      "actions": [
+        "Import and render RequestAssistant inside or immediately above .workbench-request",
+        "Connect language, input, archetype override and input-update props to Workbench state",
+        "On adoption, retain the accepted AssistantDraft specification and derive or pass through its analysis explicitly",
+        "Clear stale optimizer output and navigate to Compiled Prompts after adoption",
+        "Do not call the current run() callback from onAdopt because it rebuilds defaultSpec and overwrites the reviewed draft",
+        "Add component tests for template, dialogue, review/edit, adoption, close and restart"
+      ],
+      "acceptanceCriteria": [
+        "Adopted constraints, advanced controls, output format and specification remain intact",
+        "No second generation silently replaces the adopted specification",
+        "The original task text survives closing or restarting the assistant"
+      ]
+    },
+    {
+      "id": "UX-002",
+      "title": "Pass adopted input values into the Playground",
+      "priority": "P1",
+      "phase": 1,
+      "status": "proposed",
+      "dependsOn": ["UX-001"],
+      "files": ["src/components/Workbench.tsx"],
+      "actions": [
+        "Add explicit initialValues support to Playground",
+        "Map AssistantDraft.inputValues to prompt placeholders",
+        "Reset or reconcile values when prompt identity or placeholder set changes",
+        "Keep file extraction client-side and explain that extracted content is sent to a model only when a model run is explicitly initiated"
+      ],
+      "acceptanceCriteria": [
+        "Matching {{variable}} fields are prefilled on first Playground open",
+        "Changing prompt cannot leave stale values silently attached to different variables",
+        "Tests verify local file parsing is distinct from model transmission"
+      ]
+    },
+    {
+      "id": "I18N-001",
+      "title": "Localize diagnostics with stable message codes",
+      "priority": "P1",
+      "phase": 2,
+      "status": "proposed",
+      "dependsOn": ["UX-001"],
+      "files": ["src/lib/i18n.ts", "src/lib/prompt/linter.ts", "src/lib/prompt/readiness.ts", "src/components/Workbench.tsx"],
+      "actions": [
+        "Give linter findings and readiness blockers stable diagnostic IDs",
+        "Add typed English and Arabic translations for titles, details, remediations and announcements",
+        "Provide a readable fallback for unknown future codes",
+        "Keep localized wording separate from engine decision logic"
+      ],
+      "acceptanceCriteria": [
+        "Every known diagnostic code has English and Arabic text",
+        "Language switching preserves IDs, evidence and behavior",
+        "RTL and mixed-script diagnostic layouts pass smoke tests"
+      ]
+    },
+    {
+      "id": "I18N-002",
+      "title": "Add bilingual, version-neutral provider guidance",
+      "priority": "P1",
+      "phase": 2,
+      "status": "proposed",
+      "dependsOn": [],
+      "files": ["src/components/ModelSettings.tsx", "src/lib/i18n.ts"],
+      "actions": [
+        "Add concise Arabic and English provider-family cards, capability context, endpoint requirements and key-handling guidance",
+        "Keep model IDs editable and avoid stale hard-coded recommendations for specific model versions",
+        "Use a maintained, dated model catalog only if there is a reliable update source"
+      ],
+      "acceptanceCriteria": [
+        "Provider explanations are bilingual and version-neutral unless verified from a maintained catalog",
+        "No unsupported guarantee or stale model-performance claim appears"
+      ]
+    },
+    {
+      "id": "TEST-001",
+      "title": "Reproduce and fix NameTooLong in the prompt-engine test loader",
+      "priority": "P1",
+      "phase": 3,
+      "status": "proposed",
+      "dependsOn": ["SEC-001"],
+      "files": ["tests/prompt-engines.test.mjs", "tests/helpers/*", "package.json", ".github/workflows/CI.yml"],
+      "actions": [
+        "Reproduce the reported failure on the CI Node version after clean dependency installation",
+        "If confirmed, replace oversized data-URL module imports with temporary transpiled .mjs files and file URLs, or adopt a compatible TS-aware runner",
+        "Preserve current assertions until a separately reviewed behavior change updates them",
+        "Run npm test, lint and build from a clean install"
+      ],
+      "acceptanceCriteria": [
+        "Failure is reproduced before the fix and documented",
+        "No data-URL length error remains",
+        "All safety and regression assertions still execute",
+        "CI passes on Node 22"
+      ]
+    },
+    {
+      "id": "DB-001",
+      "title": "Reconcile cloud registry setup SQL with the canonical table",
+      "priority": "P1",
+      "phase": 4,
+      "status": "proposed",
+      "dependsOn": [],
+      "files": ["src/lib/cloudRegistry.ts", "src/integrations/supabase/types.ts", "drizzle/migrations/0000_prompt_registries.sql", "docs/supabase-cloud-storage.sql", "docs/model-providers-cloud-sync.md"],
+      "actions": [
+        "Keep the code and Drizzle migration canonical table name prompt_registries unless an intentional migration is approved",
+        "Update or clearly retire standalone SQL that defines intent_guard_registry and optional workspace tables",
+        "Test the documented migration sequence against a clean Supabase project under RLS",
+        "Surface background sync errors and provide retry/status; do not silently swallow failures"
+      ],
+      "acceptanceCriteria": [
+        "One canonical schema/setup path is documented",
+        "App read/write operations match the table and policies created by the documented migration",
+        "RLS isolation and sync failure recovery have tests"
+      ]
+    },
+    {
+      "id": "CORE-001",
+      "title": "Resolve classifier drift using a bilingual benchmark",
+      "priority": "P1",
+      "phase": 5,
+      "status": "proposed",
+      "dependsOn": ["TEST-001"],
+      "files": ["src/lib/prompt/decisionEngine.ts", "src/lib/prompt/intentAnalyzer.ts", "src/lib/prompt/analyzerAudit.ts", "tests/prompt-engines.test.mjs"],
+      "actions": [
+        "Select one authoritative classifier and define audit-only legacy behavior",
+        "Add Arabic, English, mixed-language, ambiguous and overlapping-intent benchmark examples",
+        "Replace accidental substring collisions with explicit deterministic matching and tie rules",
+        "Label static rule classifications inferred rather than measured"
+      ],
+      "acceptanceCriteria": [
+        "Benchmark reports per-class metrics and confusion matrix",
+        "One classification drives all downstream decisions",
+        "Uncertainty and user overrides are visible"
+      ]
+    },
+    {
+      "id": "SEC-002",
+      "title": "Harden model-provider requests and custom endpoints",
+      "priority": "P1",
+      "phase": 5,
+      "status": "proposed",
+      "dependsOn": ["SEC-001"],
+      "files": ["src/lib/ai.functions.ts", "src/lib/prompt/providerTypes.ts", "src/components/ModelSettings.tsx", "tests/*provider*"],
+      "actions": [
+        "Test and mitigate SSRF through private/alternate IPv6 addresses, redirects and DNS rebinding",
+        "Use provider-supported credential headers where possible and redact secrets from errors/logs",
+        "Add timeouts, cancellation, response-size caps, schema validation and server-side usage limits",
+        "Add provider-specific malformed response, timeout and URL-security tests"
+      ],
+      "acceptanceCriteria": [
+        "Disallowed destinations cannot be reached through URL parsing or redirect tricks",
+        "Secrets are absent from logs, UI exports and persisted browser storage",
+        "Provider calls are bounded and failures are actionable"
+      ]
+    },
+    {
+      "id": "OPS-001",
+      "title": "Clarify and optionally productionize Guardrails operations",
+      "priority": "P2",
+      "phase": 5,
+      "status": "proposed",
+      "dependsOn": ["SEC-002", "DB-001"],
+      "files": ["src/components/GuardrailConsole.tsx", "src/lib/guardrail-policy.mjs", "docs/intentguard-operations.md", "server routes", "database migrations"],
+      "actions": [
+        "Separate demo/local telemetry visibly from authenticated production data",
+        "Label heuristic drift and phrase-match scores as estimates, not measured enforcement",
+        "If production scope is approved, add durable authenticated telemetry, tenant-scoped policies, server-side enforcement and allowlisted webhook delivery",
+        "Keep policy UI from claiming enforcement until the server request path applies policy"
+      ],
+      "acceptanceCriteria": [
+        "Demo, local, and production states are distinguishable",
+        "Only server-enforced policies are labeled enforced",
+        "Production audit events are durable, tenant-scoped and tested"
+      ]
+    },
+    {
+      "id": "BILL-001",
+      "title": "Design and implement web subscription entitlements",
+      "priority": "P3",
+      "phase": 6,
+      "status": "deferred",
+      "dependsOn": ["SEC-001", "DB-001"],
+      "files": ["database migrations", "server routes", "webhook handler", "billing UI", "billing tests"],
+      "actions": [
+        "Choose one billing provider after requirements and regional support review",
+        "Model subscriptions, provider IDs, entitlement status, renewal/cancellation and provider event idempotency",
+        "Verify webhook signatures and enforce entitlements server-side",
+        "Do not store card details; add cancellation/refund/retry and webhook replay behavior"
+      ],
+      "acceptanceCriteria": [
+        "Sandbox payment lifecycle is idempotent and server-authoritative",
+        "Client redirects cannot grant paid entitlements",
+        "Webhook retries, cancellation and refund transitions are tested"
+      ]
+    },
+    {
+      "id": "ANDROID-001",
+      "title": "Evaluate and prototype Android packaging",
+      "priority": "P3",
+      "phase": 6,
+      "status": "deferred",
+      "dependsOn": ["BILL-001"],
+      "files": ["Capacitor configuration", "Android app project", "CI signing workflow", "mobile tests", "privacy documentation"],
+      "actions": [
+        "Validate Capacitor compatibility with SSR, file import, auth redirects, clipboard, downloads and provider calls",
+        "Confirm current Google Play rules and billing path before choosing native/web billing",
+        "Produce a proof-of-concept and test on a real Android device before committing release scope",
+        "Store signing material only in an approved secret manager or CI secret store"
+      ],
+      "acceptanceCriteria": [
+        "A test Android build installs and completes core workflows on device",
+        "Billing approach has documented policy review",
+        "Signing credentials are not in source control"
+      ]
+    }
+  ],
+  "verification": {
+    "testsExecuted": false,
+    "reason": "Dependencies were absent during repository review; the reported tsgo and NameTooLong results were not independently reproduced.",
+    "repositoryFilesModified": false
+  }
+}

@@ -1,0 +1,299 @@
+[1mdiff --git a/docs/supabase-cloud-storage.sql b/docs/supabase-cloud-storage.sql[m
+[1mindex dbb9595..185bd3e 100644[m
+[1m--- a/docs/supabase-cloud-storage.sql[m
+[1m+++ b/docs/supabase-cloud-storage.sql[m
+[36m@@ -1,30 +1,28 @@[m
+[31m--- Run this migration in the user's Supabase SQL editor before enabling cloud registry sync.[m
+[31m--- RLS is owner-scoped: each authenticated user can only access their own registry snapshot.[m
+[31m-create table if not exists public.intent_guard_registry ([m
+[32m+[m[32m-- Canonical per-user registry table used by src/lib/cloudRegistry.ts and[m
+[32m+[m[32m-- drizzle/migrations/0000_prompt_registries.sql. Apply the Drizzle migration[m
+[32m+[m[32m-- OR this SQL setup, not both, before enabling cloud registry sync.[m
+[32m+[m[32m-- RLS is owner-scoped: each authenticated user can only access their own snapshot.[m
+[32m+[m[32mcreate table if not exists public.prompt_registries ([m
+   user_id uuid primary key references auth.users(id) on delete cascade,[m
+   registry jsonb not null default '{"assets":[],"audit":[]}'::jsonb,[m
+   updated_at timestamptz not null default now()[m
+ );[m
+ [m
+[31m-alter table public.intent_guard_registry enable row level security;[m
+[31m-[m
+[31m-drop policy if exists "Users can read own registry" on public.intent_guard_registry;[m
+[32m+[m[32malter table public.prompt_registries enable row level security;[m
+[32m+[m[32mdrop policy if exists "Users can read own registry" on public.prompt_registries;[m
+ create policy "Users can read own registry"[m
+[31m-  on public.intent_guard_registry for select[m
+[32m+[m[32m  on public.prompt_registries for select[m
+   to authenticated using (auth.uid() = user_id);[m
+[31m-[m
+[31m-drop policy if exists "Users can insert own registry" on public.intent_guard_registry;[m
+[32m+[m[32mdrop policy if exists "Users can insert own registry" on public.prompt_registries;[m
+ create policy "Users can insert own registry"[m
+[31m-  on public.intent_guard_registry for insert[m
+[32m+[m[32m  on public.prompt_registries for insert[m
+   to authenticated with check (auth.uid() = user_id);[m
+[31m-[m
+[31m-drop policy if exists "Users can update own registry" on public.intent_guard_registry;[m
+[32m+[m[32mdrop policy if exists "Users can update own registry" on public.prompt_registries;[m
+ create policy "Users can update own registry"[m
+[31m-  on public.intent_guard_registry for update[m
+[32m+[m[32m  on public.prompt_registries for update[m
+   to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);[m
+[31m-[m
+[31m-revoke all on public.intent_guard_registry from anon;[m
+[31m-grant select, insert, update on public.intent_guard_registry to authenticated;[m
+[32m+[m[32mrevoke all on public.prompt_registries from anon;[m
+[32m+[m[32mgrant select, insert, update on public.prompt_registries to authenticated;[m
+ [m
+ -- Optional shared workspaces. Members must already have Supabase Auth accounts.[m
+ create table if not exists public.intent_guard_workspaces ([m
+[1mdiff --git a/src/components/RequestAssistant.tsx b/src/components/RequestAssistant.tsx[m
+[1mindex 5f09f13..0030119 100644[m
+[1m--- a/src/components/RequestAssistant.tsx[m
+[1m+++ b/src/components/RequestAssistant.tsx[m
+[36m@@ -77,6 +77,12 @@[m [mexport function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr[m
+         {text("Attach inputs", "إرفاق المدخلات")}[m
+         <input type="file" multiple accept=".xlsx,.xlsm,.txt,.md,.csv,.json" aria-label={text("Assistant reference files", "ملفات المساعد المرجعية")} disabled={busy} onChange={upload} className="min-w-0 max-w-full text-xs" />[m
+       </label>[m
+[32m+[m[32m      <p className="text-xs text-muted-foreground">[m
+[32m+[m[32m        {text([m
+[32m+[m[32m          "Files are read locally in this browser. Their extracted content is sent to a model provider only if you later run the prompt live.",[m
+[32m+[m[32m          "تُقرأ الملفات محليًا في هذا المتصفح. ولا يُرسل محتواها المستخرج إلى مزود نموذج إلا إذا شغّلت المطالبة لاحقًا على نموذج حي.",[m
+[32m+[m[32m        )}[m
+[32m+[m[32m      </p>[m
+       {busy && <p role="status" className="text-sm text-muted-foreground">{text("Reading files…", "جارٍ قراءة الملفات…")}</p>}[m
+       <ul className="space-y-1">[m
+         {documents.map(d => <li key={d.name} className="flex items-center gap-2 border-b py-2 text-xs"><FileSpreadsheet className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 break-all">{d.name}</span><Button size="icon" variant="ghost" aria-label={`${text("Remove", "حذف")} ${d.name}`} onClick={() => setDocuments(current => current.filter(f => f.name !== d.name))}><X className="h-4 w-4" /></Button></li>)}[m
+[36m@@ -153,4 +159,4 @@[m [mexport function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr[m
+       </div>[m
+     </div>[m
+   );[m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m[32m}[m
+[1mdiff --git a/src/components/Workbench.tsx b/src/components/Workbench.tsx[m
+[1mindex 862efa6..9c4b8d9 100644[m
+[1m--- a/src/components/Workbench.tsx[m
+[1m+++ b/src/components/Workbench.tsx[m
+[36m@@ -42,7 +42,9 @@[m [mimport {[m
+ } from "@/lib/prompt/providerTypes";[m
+ import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdapters";[m
+ import { HelpUserGuide } from "@/components/HelpUserGuide";[m
+[32m+[m[32mimport { RequestAssistant } from "@/components/RequestAssistant";[m
+ import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";[m
+[32m+[m[32mimport { prepareAssistantAdoption } from "@/lib/prompt/requestAssistant";[m
+ import { Button } from "@/components/ui/button";[m
+ import { ArrowRight, FileCode2, Globe2 } from "lucide-react";[m
+ [m
+[36m@@ -238,6 +240,8 @@[m [mexport function Workbench() {[m
+   const [override, setOverride] = useState<Archetype | "">("");[m
+   const [analysis, setAnalysis] = useState<IntentAnalysis | null>(null);[m
+   const [spec, setSpec] = useState<Specification | null>(null);[m
+[32m+[m[32m  const [playgroundInitialValues, setPlaygroundInitialValues] = useState<Record<string, string>>({});[m
+[32m+[m[32m  const [playgroundRevision, setPlaygroundRevision] = useState(0);[m
+ [m
+   useEffect(() => {[m
+     document.documentElement.lang = lang;[m
+[36m@@ -279,6 +283,8 @@[m [mexport function Workbench() {[m
+     const a = analyzeIntent(input, override || null);[m
+     const sp = defaultSpec(input, a);[m
+     setAiOv(null);[m
+[32m+[m[32m    setPlaygroundInitialValues({});[m
+[32m+[m[32m    setPlaygroundRevision((revision) => revision + 1);[m
+     setAnalysis(a);[m
+     setSpec(sp);[m
+     setDSpec(sp);[m
+[36m@@ -460,6 +466,24 @@[m [mexport function Workbench() {[m
+               </Button>[m
+             </div>[m
+           </div>[m
+[32m+[m[32m          <RequestAssistant[m
+[32m+[m[32m            lang={lang}[m
+[32m+[m[32m            input={input}[m
+[32m+[m[32m            override={override}[m
+[32m+[m[32m            onInput={setInput}[m
+[32m+[m[32m            onAdopt={(draft) => {[m
+[32m+[m[32m              const adopted = prepareAssistantAdoption(draft);[m
+[32m+[m[32m              setInput(adopted.source);[m
+[32m+[m[32m              setOverride(adopted.specification.archetype);[m
+[32m+[m[32m              setAiOv(null);[m
+[32m+[m[32m              setAnalysis(adopted.analysis);[m
+[32m+[m[32m              setSpec(adopted.specification);[m
+[32m+[m[32m              setDSpec(adopted.specification);[m
+[32m+[m[32m              setPlaygroundInitialValues(adopted.inputValues);[m
+[32m+[m[32m              setPlaygroundRevision((revision) => revision + 1);[m
+[32m+[m[32m              setTab("compiled");[m
+[32m+[m[32m            }}[m
+[32m+[m[32m          />[m
+           {analysis && report && evalR && ([m
+             <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">[m
+               <Stat[m
+[36m@@ -529,7 +553,13 @@[m [mexport function Workbench() {[m
+               </div>[m
+             ) : tab === "playground" ? ([m
+               <div className="space-y-4">[m
+[31m-                <Playground c={compiled} t={t} providerConfig={providerConfig} />[m
+[32m+[m[32m                <Playground[m
+[32m+[m[32m                  key={playgroundRevision}[m
+[32m+[m[32m                  c={compiled}[m
+[32m+[m[32m                  t={t}[m
+[32m+[m[32m                  providerConfig={providerConfig}[m
+[32m+[m[32m                  initialValues={playgroundInitialValues}[m
+[32m+[m[32m                />[m
+                 {governance && <GovernancePanels result={governance} lang={lang} />}[m
+               </div>[m
+             ) : ([m
+[36m@@ -1843,10 +1873,12 @@[m [mfunction Playground({[m
+   c,[m
+   t,[m
+   providerConfig,[m
+[32m+[m[32m  initialValues,[m
+ }: {[m
+   c: NonNullable<ReturnType<typeof compile>>;[m
+   t: (k: string) => string;[m
+   providerConfig: ModelProviderConfig;[m
+[32m+[m[32m  initialValues: Record<string, string>;[m
+ }) {[m
+   const run = useServerFn(runPrompt);[m
+   const judge = useServerFn(judgeOutput);[m
+[36m@@ -1857,7 +1889,7 @@[m [mfunction Playground({[m
+       ),[m
+     [c],[m
+   );[m
+[31m-  const [vals, setVals] = useState<Record<string, string>>({});[m
+[32m+[m[32m  const [vals, setVals] = useState<Record<string, string>>(initialValues);[m
+   const [out, setOut] = useState("");[m
+   const [busy, setBusy] = useState(false);[m
+   const [err, setErr] = useState("");[m
+[1mdiff --git a/src/lib/prompt/requestAssistant.ts b/src/lib/prompt/requestAssistant.ts[m
+[1mindex 5b1fbbb..a8d4f84 100644[m
+[1m--- a/src/lib/prompt/requestAssistant.ts[m
+[1m+++ b/src/lib/prompt/requestAssistant.ts[m
+[36m@@ -1,6 +1,6 @@[m
+ import { analyzeIntent } from "./intentAnalyzer";[m
+ import { defaultSpec, DEFAULT_ADV } from "./compiler";[m
+[31m-import type { Archetype, Specification, AdvancedControls } from "./types";[m
+[32m+[m[32mimport type { Archetype, IntentAnalysis, Specification, AdvancedControls } from "./types";[m
+ [m
+ export interface AssistantAnswers {[m
+   deliverable: string;[m
+[36m@@ -15,6 +15,21 @@[m [mexport interface AssistantDraft {[m
+   specification: Specification;[m
+   inputValues: Record<string, string>;[m
+ }[m
+[32m+[m[32mexport interface AdoptedAssistantDraft {[m
+[32m+[m[32m  source: string;[m
+[32m+[m[32m  analysis: IntentAnalysis;[m
+[32m+[m[32m  specification: Specification;[m
+[32m+[m[32m  inputValues: Record<string, string>;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport function prepareAssistantAdoption(draft: AssistantDraft): AdoptedAssistantDraft {[m
+[32m+[m[32m  return {[m
+[32m+[m[32m    source: draft.source,[m
+[32m+[m[32m    analysis: analyzeIntent(draft.specification.goal, draft.specification.archetype),[m
+[32m+[m[32m    specification: draft.specification,[m
+[32m+[m[32m    inputValues: { ...draft.inputValues },[m
+[32m+[m[32m  };[m
+[32m+[m[32m}[m
+ [m
+ export function synthesizeRequest(source: string, answers: AssistantAnswers, documents: AdvancedControls["documents"], language: "ar" | "en", override?: Archetype): AssistantDraft {[m
+   if (!source.trim()) throw new Error(language === "ar" ? "اكتب طلبك أولًا." : "Enter a request first.");[m
+[36m@@ -62,4 +77,4 @@[m [mexport function synthesizeRequest(source: string, answers: AssistantAnswers, doc[m
+ export function assistantInputValues(spec: Specification): Record<string, string> {[m
+   const documents = spec.advanced?.documents ?? [];[m
+   return { user_request: spec.goal, input: documents.length ? documents.map(d => `${d.name}\n${d.content}`).join("\n\n") : spec.goal };[m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m[32m}[m
+[1mdiff --git a/tests/request-assistant-adoption.test.mjs b/tests/request-assistant-adoption.test.mjs[m
+[1mnew file mode 100644[m
+[1mindex 0000000..d04475e[m
+[1m--- /dev/null[m
+[1m+++ b/tests/request-assistant-adoption.test.mjs[m
+[36m@@ -0,0 +1,85 @@[m
+[32m+[m[32mimport assert from "node:assert/strict";[m
+[32m+[m[32mimport test from "node:test";[m
+[32m+[m[32mimport { readFile } from "node:fs/promises";[m
+[32m+[m[32mimport { fileURLToPath } from "node:url";[m
+[32m+[m[32mimport ts from "typescript";[m
+[32m+[m
+[32m+[m[32mconst root = new URL("../", import.meta.url);[m
+[32m+[m[32masync function loadTypeScript(path, transform = (source) => source) {[m
+[32m+[m[32m  const filePath = new URL(path, root);[m
+[32m+[m[32m  const source = transform(await readFile(fileURLToPath(filePath), "utf8"));[m
+[32m+[m[32m  const output = ts.transpileModule(source, {[m
+[32m+[m[32m    compilerOptions: {[m
+[32m+[m[32m      module: ts.ModuleKind.ESNext,[m
+[32m+[m[32m      target: ts.ScriptTarget.ES2022,[m
+[32m+[m[32m    },[m
+[32m+[m[32m  }).outputText;[m
+[32m+[m[32m  return import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mconst analyzer = await loadTypeScript("src/lib/prompt/intentAnalyzer.ts");[m
+[32m+[m[32mglobalThis.__requestAssistantTestAnalyzer = analyzer;[m
+[32m+[m[32mconst assistant = await loadTypeScript("src/lib/prompt/requestAssistant.ts", (source) =>[m
+[32m+[m[32m  source[m
+[32m+[m[32m    .replace([m
+[32m+[m[32m      'import { analyzeIntent } from "./intentAnalyzer";',[m
+[32m+[m[32m      "const { analyzeIntent } = globalThis.__requestAssistantTestAnalyzer;",[m
+[32m+[m[32m    )[m
+[32m+[m[32m    .replace([m
+[32m+[m[32m      'import { defaultSpec, DEFAULT_ADV } from "./compiler";',[m
+[32m+[m[32m      "const { defaultSpec, DEFAULT_ADV } = {};",[m
+[32m+[m[32m    ),[m
+[32m+[m[32m);[m
+[32m+[m
+[32m+[m[32mtest("adoption preserves the reviewed specification and source", () => {[m
+[32m+[m[32m  const specification = {[m
+[32m+[m[32m    goal: "Prepare a market strategy with documented assumptions.",[m
+[32m+[m[32m    archetype: "software",[m
+[32m+[m[32m    persona: "User-selected specialist",[m
+[32m+[m[32m    audience: "Executive team",[m
+[32m+[m[32m    tone: "professional",[m
+[32m+[m[32m    constraints: ["Do not invent market data", "Show assumptions"],[m
+[32m+[m[32m    outputFormat: "json",[m
+[32m+[m[32m    outputSchema: '{"summary":"string"}',[m
+[32m+[m[32m    components: ["task", "constraints", "output_contract"],[m
+[32m+[m[32m    variables: [{ name: "input", description: "Source data", example: "" }],[m
+[32m+[m[32m    examples: "",[m
+[32m+[m[32m    reasoning: "brief",[m
+[32m+[m[32m    maxWords: 700,[m
+[32m+[m[32m    advanced: {[m
+[32m+[m[32m      executiveDoc: true,[m
+[32m+[m[32m      confidence: "evidence_weighted",[m
+[32m+[m[32m      selfRedTeam: true,[m
+[32m+[m[32m      brutalTruth: false,[m
+[32m+[m[32m      documents: [],[m
+[32m+[m[32m      docsWeight: 100,[m
+[32m+[m[32m    },[m
+[32m+[m[32m  };[m
+[32m+[m[32m  const draft = {[m
+[32m+[m[32m    source: "Create a market strategy",[m
+[32m+[m[32m    specification,[m
+[32m+[m[32m    inputValues: { input: "Synthetic test data", user_request: "Review this request" },[m
+[32m+[m[32m  };[m
+[32m+[m
+[32m+[m[32m  const adopted = assistant.prepareAssistantAdoption(draft);[m
+[32m+[m
+[32m+[m[32m  assert.equal(adopted.source, draft.source);[m
+[32m+[m[32m  assert.equal(adopted.specification, specification);[m
+[32m+[m[32m  assert.deepEqual(adopted.specification.constraints, specification.constraints);[m
+[32m+[m[32m  assert.deepEqual(adopted.specification.advanced, specification.advanced);[m
+[32m+[m[32m  assert.equal(adopted.analysis.archetype, "software");[m
+[32m+[m[32m});[m
+[32m+[m
+[32m+[m[32mtest("adoption copies variable values for the Playground", () => {[m
+[32m+[m[32m  const draftValues = { input: "Synthetic content", user_request: "Synthetic request" };[m
+[32m+[m[32m  const adopted = assistant.prepareAssistantAdoption({[m
+[32m+[m[32m    source: "Build an analysis prompt",[m
+[32m+[m[32m    specification: { goal: "Analyze a supplied dataset", archetype: "analytics" },[m
+[32m+[m[32m    inputValues: draftValues,[m
+[32m+[m[32m  });[m
+[32m+[m
+[32m+[m[32m  assert.deepEqual(adopted.inputValues, draftValues);[m
+[32m+[m[32m  assert.notEqual(adopted.inputValues, draftValues);[m
+[32m+[m[32m  adopted.inputValues.input = "edited value";[m
+[32m+[m[32m  assert.equal(draftValues.input, "Synthetic content");[m
+[32m+[m[32m});[m

@@ -1,0 +1,299 @@
+diff --git a/docs/supabase-cloud-storage.sql b/docs/supabase-cloud-storage.sql
+index dbb9595..185bd3e 100644
+--- a/docs/supabase-cloud-storage.sql
++++ b/docs/supabase-cloud-storage.sql
+@@ -1,30 +1,28 @@
+--- Run this migration in the user's Supabase SQL editor before enabling cloud registry sync.
+--- RLS is owner-scoped: each authenticated user can only access their own registry snapshot.
+-create table if not exists public.intent_guard_registry (
++-- Canonical per-user registry table used by src/lib/cloudRegistry.ts and
++-- drizzle/migrations/0000_prompt_registries.sql. Apply the Drizzle migration
++-- OR this SQL setup, not both, before enabling cloud registry sync.
++-- RLS is owner-scoped: each authenticated user can only access their own snapshot.
++create table if not exists public.prompt_registries (
+   user_id uuid primary key references auth.users(id) on delete cascade,
+   registry jsonb not null default '{"assets":[],"audit":[]}'::jsonb,
+   updated_at timestamptz not null default now()
+ );
+ 
+-alter table public.intent_guard_registry enable row level security;
+-
+-drop policy if exists "Users can read own registry" on public.intent_guard_registry;
++alter table public.prompt_registries enable row level security;
++drop policy if exists "Users can read own registry" on public.prompt_registries;
+ create policy "Users can read own registry"
+-  on public.intent_guard_registry for select
++  on public.prompt_registries for select
+   to authenticated using (auth.uid() = user_id);
+-
+-drop policy if exists "Users can insert own registry" on public.intent_guard_registry;
++drop policy if exists "Users can insert own registry" on public.prompt_registries;
+ create policy "Users can insert own registry"
+-  on public.intent_guard_registry for insert
++  on public.prompt_registries for insert
+   to authenticated with check (auth.uid() = user_id);
+-
+-drop policy if exists "Users can update own registry" on public.intent_guard_registry;
++drop policy if exists "Users can update own registry" on public.prompt_registries;
+ create policy "Users can update own registry"
+-  on public.intent_guard_registry for update
++  on public.prompt_registries for update
+   to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-
+-revoke all on public.intent_guard_registry from anon;
+-grant select, insert, update on public.intent_guard_registry to authenticated;
++revoke all on public.prompt_registries from anon;
++grant select, insert, update on public.prompt_registries to authenticated;
+ 
+ -- Optional shared workspaces. Members must already have Supabase Auth accounts.
+ create table if not exists public.intent_guard_workspaces (
+diff --git a/src/components/RequestAssistant.tsx b/src/components/RequestAssistant.tsx
+index 5f09f13..0030119 100644
+--- a/src/components/RequestAssistant.tsx
++++ b/src/components/RequestAssistant.tsx
+@@ -77,6 +77,12 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
+         {text("Attach inputs", "إرفاق المدخلات")}
+         <input type="file" multiple accept=".xlsx,.xlsm,.txt,.md,.csv,.json" aria-label={text("Assistant reference files", "ملفات المساعد المرجعية")} disabled={busy} onChange={upload} className="min-w-0 max-w-full text-xs" />
+       </label>
++      <p className="text-xs text-muted-foreground">
++        {text(
++          "Files are read locally in this browser. Their extracted content is sent to a model provider only if you later run the prompt live.",
++          "تُقرأ الملفات محليًا في هذا المتصفح. ولا يُرسل محتواها المستخرج إلى مزود نموذج إلا إذا شغّلت المطالبة لاحقًا على نموذج حي.",
++        )}
++      </p>
+       {busy && <p role="status" className="text-sm text-muted-foreground">{text("Reading files…", "جارٍ قراءة الملفات…")}</p>}
+       <ul className="space-y-1">
+         {documents.map(d => <li key={d.name} className="flex items-center gap-2 border-b py-2 text-xs"><FileSpreadsheet className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 break-all">{d.name}</span><Button size="icon" variant="ghost" aria-label={`${text("Remove", "حذف")} ${d.name}`} onClick={() => setDocuments(current => current.filter(f => f.name !== d.name))}><X className="h-4 w-4" /></Button></li>)}
+@@ -153,4 +159,4 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
+       </div>
+     </div>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/src/components/Workbench.tsx b/src/components/Workbench.tsx
+index 862efa6..9c4b8d9 100644
+--- a/src/components/Workbench.tsx
++++ b/src/components/Workbench.tsx
+@@ -42,7 +42,9 @@ import {
+ } from "@/lib/prompt/providerTypes";
+ import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdapters";
+ import { HelpUserGuide } from "@/components/HelpUserGuide";
++import { RequestAssistant } from "@/components/RequestAssistant";
+ import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
++import { prepareAssistantAdoption } from "@/lib/prompt/requestAssistant";
+ import { Button } from "@/components/ui/button";
+ import { ArrowRight, FileCode2, Globe2 } from "lucide-react";
+ 
+@@ -238,6 +240,8 @@ export function Workbench() {
+   const [override, setOverride] = useState<Archetype | "">("");
+   const [analysis, setAnalysis] = useState<IntentAnalysis | null>(null);
+   const [spec, setSpec] = useState<Specification | null>(null);
++  const [playgroundInitialValues, setPlaygroundInitialValues] = useState<Record<string, string>>({});
++  const [playgroundRevision, setPlaygroundRevision] = useState(0);
+ 
+   useEffect(() => {
+     document.documentElement.lang = lang;
+@@ -279,6 +283,8 @@ export function Workbench() {
+     const a = analyzeIntent(input, override || null);
+     const sp = defaultSpec(input, a);
+     setAiOv(null);
++    setPlaygroundInitialValues({});
++    setPlaygroundRevision((revision) => revision + 1);
+     setAnalysis(a);
+     setSpec(sp);
+     setDSpec(sp);
+@@ -460,6 +466,24 @@ export function Workbench() {
+               </Button>
+             </div>
+           </div>
++          <RequestAssistant
++            lang={lang}
++            input={input}
++            override={override}
++            onInput={setInput}
++            onAdopt={(draft) => {
++              const adopted = prepareAssistantAdoption(draft);
++              setInput(adopted.source);
++              setOverride(adopted.specification.archetype);
++              setAiOv(null);
++              setAnalysis(adopted.analysis);
++              setSpec(adopted.specification);
++              setDSpec(adopted.specification);
++              setPlaygroundInitialValues(adopted.inputValues);
++              setPlaygroundRevision((revision) => revision + 1);
++              setTab("compiled");
++            }}
++          />
+           {analysis && report && evalR && (
+             <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+               <Stat
+@@ -529,7 +553,13 @@ export function Workbench() {
+               </div>
+             ) : tab === "playground" ? (
+               <div className="space-y-4">
+-                <Playground c={compiled} t={t} providerConfig={providerConfig} />
++                <Playground
++                  key={playgroundRevision}
++                  c={compiled}
++                  t={t}
++                  providerConfig={providerConfig}
++                  initialValues={playgroundInitialValues}
++                />
+                 {governance && <GovernancePanels result={governance} lang={lang} />}
+               </div>
+             ) : (
+@@ -1843,10 +1873,12 @@ function Playground({
+   c,
+   t,
+   providerConfig,
++  initialValues,
+ }: {
+   c: NonNullable<ReturnType<typeof compile>>;
+   t: (k: string) => string;
+   providerConfig: ModelProviderConfig;
++  initialValues: Record<string, string>;
+ }) {
+   const run = useServerFn(runPrompt);
+   const judge = useServerFn(judgeOutput);
+@@ -1857,7 +1889,7 @@ function Playground({
+       ),
+     [c],
+   );
+-  const [vals, setVals] = useState<Record<string, string>>({});
++  const [vals, setVals] = useState<Record<string, string>>(initialValues);
+   const [out, setOut] = useState("");
+   const [busy, setBusy] = useState(false);
+   const [err, setErr] = useState("");
+diff --git a/src/lib/prompt/requestAssistant.ts b/src/lib/prompt/requestAssistant.ts
+index 5b1fbbb..a8d4f84 100644
+--- a/src/lib/prompt/requestAssistant.ts
++++ b/src/lib/prompt/requestAssistant.ts
+@@ -1,6 +1,6 @@
+ import { analyzeIntent } from "./intentAnalyzer";
+ import { defaultSpec, DEFAULT_ADV } from "./compiler";
+-import type { Archetype, Specification, AdvancedControls } from "./types";
++import type { Archetype, IntentAnalysis, Specification, AdvancedControls } from "./types";
+ 
+ export interface AssistantAnswers {
+   deliverable: string;
+@@ -15,6 +15,21 @@ export interface AssistantDraft {
+   specification: Specification;
+   inputValues: Record<string, string>;
+ }
++export interface AdoptedAssistantDraft {
++  source: string;
++  analysis: IntentAnalysis;
++  specification: Specification;
++  inputValues: Record<string, string>;
++}
++
++export function prepareAssistantAdoption(draft: AssistantDraft): AdoptedAssistantDraft {
++  return {
++    source: draft.source,
++    analysis: analyzeIntent(draft.specification.goal, draft.specification.archetype),
++    specification: draft.specification,
++    inputValues: { ...draft.inputValues },
++  };
++}
+ 
+ export function synthesizeRequest(source: string, answers: AssistantAnswers, documents: AdvancedControls["documents"], language: "ar" | "en", override?: Archetype): AssistantDraft {
+   if (!source.trim()) throw new Error(language === "ar" ? "اكتب طلبك أولًا." : "Enter a request first.");
+@@ -62,4 +77,4 @@ export function synthesizeRequest(source: string, answers: AssistantAnswers, doc
+ export function assistantInputValues(spec: Specification): Record<string, string> {
+   const documents = spec.advanced?.documents ?? [];
+   return { user_request: spec.goal, input: documents.length ? documents.map(d => `${d.name}\n${d.content}`).join("\n\n") : spec.goal };
+-}
+\ No newline at end of file
++}
+diff --git a/tests/request-assistant-adoption.test.mjs b/tests/request-assistant-adoption.test.mjs
+new file mode 100644
+index 0000000..d04475e
+--- /dev/null
++++ b/tests/request-assistant-adoption.test.mjs
+@@ -0,0 +1,85 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { readFile } from "node:fs/promises";
++import { fileURLToPath } from "node:url";
++import ts from "typescript";
++
++const root = new URL("../", import.meta.url);
++async function loadTypeScript(path, transform = (source) => source) {
++  const filePath = new URL(path, root);
++  const source = transform(await readFile(fileURLToPath(filePath), "utf8"));
++  const output = ts.transpileModule(source, {
++    compilerOptions: {
++      module: ts.ModuleKind.ESNext,
++      target: ts.ScriptTarget.ES2022,
++    },
++  }).outputText;
++  return import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
++}
++
++const analyzer = await loadTypeScript("src/lib/prompt/intentAnalyzer.ts");
++globalThis.__requestAssistantTestAnalyzer = analyzer;
++const assistant = await loadTypeScript("src/lib/prompt/requestAssistant.ts", (source) =>
++  source
++    .replace(
++      'import { analyzeIntent } from "./intentAnalyzer";',
++      "const { analyzeIntent } = globalThis.__requestAssistantTestAnalyzer;",
++    )
++    .replace(
++      'import { defaultSpec, DEFAULT_ADV } from "./compiler";',
++      "const { defaultSpec, DEFAULT_ADV } = {};",
++    ),
++);
++
++test("adoption preserves the reviewed specification and source", () => {
++  const specification = {
++    goal: "Prepare a market strategy with documented assumptions.",
++    archetype: "software",
++    persona: "User-selected specialist",
++    audience: "Executive team",
++    tone: "professional",
++    constraints: ["Do not invent market data", "Show assumptions"],
++    outputFormat: "json",
++    outputSchema: '{"summary":"string"}',
++    components: ["task", "constraints", "output_contract"],
++    variables: [{ name: "input", description: "Source data", example: "" }],
++    examples: "",
++    reasoning: "brief",
++    maxWords: 700,
++    advanced: {
++      executiveDoc: true,
++      confidence: "evidence_weighted",
++      selfRedTeam: true,
++      brutalTruth: false,
++      documents: [],
++      docsWeight: 100,
++    },
++  };
++  const draft = {
++    source: "Create a market strategy",
++    specification,
++    inputValues: { input: "Synthetic test data", user_request: "Review this request" },
++  };
++
++  const adopted = assistant.prepareAssistantAdoption(draft);
++
++  assert.equal(adopted.source, draft.source);
++  assert.equal(adopted.specification, specification);
++  assert.deepEqual(adopted.specification.constraints, specification.constraints);
++  assert.deepEqual(adopted.specification.advanced, specification.advanced);
++  assert.equal(adopted.analysis.archetype, "software");
++});
++
++test("adoption copies variable values for the Playground", () => {
++  const draftValues = { input: "Synthetic content", user_request: "Synthetic request" };
++  const adopted = assistant.prepareAssistantAdoption({
++    source: "Build an analysis prompt",
++    specification: { goal: "Analyze a supplied dataset", archetype: "analytics" },
++    inputValues: draftValues,
++  });
++
++  assert.deepEqual(adopted.inputValues, draftValues);
++  assert.notEqual(adopted.inputValues, draftValues);
++  adopted.inputValues.input = "edited value";
++  assert.equal(draftValues.input, "Synthetic content");
++});
