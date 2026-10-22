@@ -98,6 +98,20 @@ test("analyzer audit reports task and risk drift without silently choosing a win
   assert.equal(audit.decision.taskType, "text_analysis");
 });
 
+test("analyzer drift requires explicit review before generation", () => {
+  const disagreement = analyzerAuditModule.auditIntentAnalyzers(
+    "Please review this contract for legal compliance.",
+    "en",
+  );
+  assert.equal(analyzerAuditModule.requiresAnalyzerReview(disagreement), true);
+
+  const agreement = analyzerAuditModule.auditIntentAnalyzers(
+    "Write code to implement a Python function and program that validates email addresses.",
+    "en",
+  );
+  assert.equal(analyzerAuditModule.requiresAnalyzerReview(agreement), false);
+});
+
 test("rule-derived decision confidence is not reported as directly measured", () => {
   const intent = decisionEngine.analyzeIntent("Write a short product description.", "en");
   const decisions = decisionEngine.decideComponents(intent);
