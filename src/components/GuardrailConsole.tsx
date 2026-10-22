@@ -4,6 +4,7 @@ import {
   scoreOutput,
   validatePolicy,
   validatePolicyContent,
+  normalizeImportedPolicies,
   type Policy,
 } from "@/lib/guardrail-policy.mjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -313,16 +314,7 @@ export function GuardrailConsole({
           : [parsed];
       if (!Array.isArray(entries) || entries.length === 0)
         throw new Error("Expected a policy object, an array, or an export with a policies array.");
-      const normalized: Policy[] = [];
-      for (const entry of entries) {
-        if (!validatePolicy(entry))
-          throw new Error(
-            "Each imported policy must include id, name, mode, content, and enabled.",
-          );
-        const error = validatePolicyContent(entry.mode, entry.content);
-        if (error) throw new Error(entry.name + ": " + error);
-        normalized.push(entry);
-      }
+      const normalized = normalizeImportedPolicies(entries);
       const merged = [
         ...savedPolicies.filter((old) => !normalized.some((item) => item.id === old.id)),
         ...normalized,
