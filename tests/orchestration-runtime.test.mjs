@@ -32,7 +32,7 @@ test("high-risk runs require explicit human approval before starting", () => {
 
 test("step dependencies are enforced and successful work requires verification", () => {
   let run = createOrchestrationRun(plan());
-  assert.throws(() => startOrchestrationStep(run, "verify", []), /Dependencies incomplete/);
+  assert.throws(() => startOrchestrationStep(run, "verify"), /Dependencies incomplete/);
   run = startOrchestrationStep(run, "extract");
   run = recordOrchestrationAttempt(run, "extract", {
     outcome: "success",
@@ -41,7 +41,7 @@ test("step dependencies are enforced and successful work requires verification",
   assert.equal(run.steps[0].status, "awaiting_verification");
   run = verifyOrchestrationStep(run, "extract", { passed: true });
   assert.equal(run.steps[0].status, "verified");
-  run = startOrchestrationStep(run, "verify", ["extract"]);
+  run = startOrchestrationStep(run, "verify");
   run = recordOrchestrationAttempt(run, "verify", { outcome: "success" });
   run = verifyOrchestrationStep(run, "verify", { passed: true });
   assert.equal(run.status, "succeeded");
@@ -79,4 +79,24 @@ test("retry configuration is bounded and malformed evidence is ignored", () => {
     evidence: [{ sourceId: "", excerpt: "bad" }, { sourceId: "source-2", excerpt: "ok" }],
   });
   assert.deepEqual(run.steps[0].evidence.map((item) => item.sourceId), ["source-2"]);
+});
+
+test("verification failures consume the same bounded retry budget", () => {
+  let run = createOrchestrationRun({ id: "single", requiresHumanApproval: false, steps: [
+    { id: "only", specialist: "worker", objective: "Do work", dependsOn: [] },
+  ] }, { maxRetries: 1 });
+  run = startOrchestrationStep(run, "only");
+  run = recordOrchestrationAttempt(run, "only", { outcome: "success" });
+  run = verifyOrchestrationStep(run, "only", { passed: false, reason: "unsupported claim" });
+  assert.equal(run.steps[0].status, "retryable");
+  run = startOrchestrationStep(run, "only");
+  run = recordOrchestrationAttempt(run, "only", { outcome: "success" });
+  run = verifyOrchestrationStep(run, "only", { passed: false, reason: "still unsupported" });
+  assert.equal(run.steps[0].status, "failed");
+  assert.equal(run.status, "failed");
+});
+
+test("dependencies cannot be spoofed by caller-supplied completion identifiers", () => {
+  const run = createOrchestrationRun(plan());
+  assert.throws(() => startOrchestrationStep(run, "verify"), /Dependencies incomplete/);
 });
