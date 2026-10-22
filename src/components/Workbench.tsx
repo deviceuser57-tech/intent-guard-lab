@@ -44,6 +44,7 @@ import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdap
 import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { RequestAssistant } from "@/components/RequestAssistant";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
+import { compilePromptIR } from "@/lib/prompt/canonicalCompiler";
 import { requiresAnalyzerReview } from "@/lib/prompt/analyzerAudit";
 import { prepareAssistantAdoption, resolveAssistantGeneration } from "@/lib/prompt/requestAssistant";
 import { Button } from "@/components/ui/button";
@@ -267,9 +268,13 @@ export function Workbench() {
     const h = setTimeout(() => setDSpec(spec), 300);
     return () => clearTimeout(h);
   }, [spec]); // eslint-disable-line react-hooks/exhaustive-deps
+  const governance = useMemo(
+    () => (dSpec ? buildPromptIR(dSpec.goal || input, dSpec, lang === "ar" ? "ar" : "en") : null),
+    [dSpec, input, lang],
+  );
   const base = useMemo(
-    () => (dSpec && analysis ? compile(dSpec, analysis) : null),
-    [dSpec, analysis],
+    () => (governance ? compilePromptIR(governance, providerConfig.model, providerConfig.provider, lang === "ar" ? "ar" : "en") : null),
+    [governance, providerConfig.model, providerConfig.provider, lang],
   );
   const compiled = useMemo(
     () => (base && aiOv ? { ...base, system: aiOv.system, user: aiOv.user } : base),
@@ -279,10 +284,6 @@ export function Workbench() {
   const evalR = useMemo(
     () => (compiled && dSpec && analysis ? evaluate(compiled, dSpec, analysis) : null),
     [compiled, dSpec, analysis],
-  );
-  const governance = useMemo(
-    () => (dSpec ? buildPromptIR(dSpec.goal || input, dSpec, lang === "ar" ? "ar" : "en") : null),
-    [dSpec, input, lang],
   );
 
   const run = useCallback((acceptAnalyzerDrift = false) => {
