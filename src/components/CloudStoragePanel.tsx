@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { readCloudRegistry, writeCloudRegistry } from "@/lib/cloudRegistry";
 import { registry } from "@/lib/prompt/registry";
 
@@ -17,6 +17,7 @@ export function CloudStoragePanel({ lang }: { lang: "ar" | "en" }) {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
     void supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
     return () => data.subscription.unsubscribe();
@@ -71,6 +72,15 @@ export function CloudStoragePanel({ lang }: { lang: "ar" | "en" }) {
         setStatus(ar ? "تحقق من بريدك لتأكيد الحساب ثم سجّل الدخول." : "Check your email to confirm, then sign in.");
       else await syncAfterLogin();
     });
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="space-y-2 rounded-xl border bg-card p-5" dir={ar ? "rtl" : "ltr"}>
+        <h3 className="text-lg font-semibold">{ar ? "التخزين المحلي" : "Local storage"}</h3>
+        <p className="text-sm text-muted-foreground">{ar ? "المكتبة تعمل محليًا. خدمة المزامنة السحابية غير متاحة في بيئة التشغيل الحالية؛ لن يتعطل التطبيق بسببها." : "Your library remains available locally. Cloud sync is unavailable in this runtime, and the app will continue working without it."}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 rounded-xl border bg-card p-5" dir={ar ? "rtl" : "ltr"}>
