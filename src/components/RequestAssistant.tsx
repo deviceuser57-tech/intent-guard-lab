@@ -75,7 +75,7 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
       <label className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <Paperclip className="h-4 w-4 text-primary" aria-hidden="true" />
         {text("Attach inputs", "إرفاق المدخلات")}
-        <input type="file" multiple accept=".xlsx,.xlsm,.txt,.md,.csv,.json" aria-label={text("Assistant reference files", "ملفات المساعد المرجعية")} disabled={busy} onChange={upload} className="min-w-0 max-w-full text-xs" />
+        <input type="file" multiple accept=".docx,.xlsx,.xlsm,.txt,.md,.csv,.json" aria-label={text("Assistant reference files", "ملفات المساعد المرجعية")} disabled={busy} onChange={upload} className="min-w-0 max-w-full text-xs" />
       </label>
       <p className="text-xs text-muted-foreground">
         {text(
