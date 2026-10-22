@@ -70,13 +70,13 @@ async function readDocx(file: File): Promise<string> {
       return;
     }
     if (node.nodeType === Node.ELEMENT_NODE && (node as Element).localName === "tab") {
-      current.text += "\\t";
+      current.text += "\t";
       return;
     }
     for (const child of Array.from(node.childNodes)) visit(child, current);
   };
   visit(xml.documentElement, { text: "" });
-  const extracted = paragraphs.join("\\n");
+  const extracted = paragraphs.join("\n");
   if (!extracted.trim()) throw new Error(file.name + ": No readable text found in DOCX");
   return "Word document text extract only; embedded images, tracked changes and document formatting are not analyzed. / استخراج النص فقط؛ لا يتم تحليل الصور المضمنة أو تعقّب التغييرات أو تنسيق المستند.\\n" + extracted;
 }
