@@ -44,6 +44,7 @@ import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdap
 import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { RequestAssistant } from "@/components/RequestAssistant";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
+import { requiresAnalyzerReview } from "@/lib/prompt/analyzerAudit";
 import { prepareAssistantAdoption, resolveAssistantGeneration } from "@/lib/prompt/requestAssistant";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, FileCode2, Globe2 } from "lucide-react";
@@ -242,6 +243,7 @@ export function Workbench() {
   const [spec, setSpec] = useState<Specification | null>(null);
   const [playgroundInitialValues, setPlaygroundInitialValues] = useState<Record<string, string>>({});
   const [playgroundRevision, setPlaygroundRevision] = useState(0);
+  const [pendingAnalyzerReview, setPendingAnalyzerReview] = useState<Pick<PromptIRResult["analyzerAudit"], "differences" | "legacy" | "decision"> | null>(null);
   const assistantAdoptionRef = useRef<{
     source: string;
     analysis: IntentAnalysis;
@@ -283,9 +285,25 @@ export function Workbench() {
     [dSpec, input, lang],
   );
 
-  const run = useCallback(() => {
+  const run = useCallback((acceptAnalyzerDrift = false) => {
     if (!input.trim()) return;
     const generation = resolveAssistantGeneration(input, override, assistantAdoptionRef.current);
+
+    // Do not silently choose between the legacy classifier and the decision engine.
+    // Reviewed/adopted specifications remain preserved; fresh requests require acknowledgment on drift.
+    if (!generation.preserved && !acceptAnalyzerDrift) {
+      const candidate = buildPromptIR(input, generation.specification, lang === "ar" ? "ar" : "en");
+      if (requiresAnalyzerReview(candidate.analyzerAudit)) {
+        setPendingAnalyzerReview({
+          differences: candidate.analyzerAudit.differences,
+          legacy: candidate.analyzerAudit.legacy,
+          decision: candidate.analyzerAudit.decision,
+        });
+        return;
+      }
+    }
+
+    setPendingAnalyzerReview(null);
     if (!generation.preserved) assistantAdoptionRef.current = null;
     const a = generation.analysis;
     const sp = generation.specification;
@@ -296,7 +314,7 @@ export function Workbench() {
     setSpec(sp);
     setDSpec(sp);
     setTab(mode === "quick" ? "compiled" : "intent");
-  }, [input, override, mode]);
+  }, [input, override, mode, lang]);
 
   // Core analysis and registry panels are available in every mode.
   const tabs: Tab[] = [
@@ -431,6 +449,35 @@ export function Workbench() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        {pendingAnalyzerReview && (
+          <section role="alert" aria-live="assertive" className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4">
+            <h2 className="text-base font-semibold">
+              {isAr ? "تعارض في تصنيف المهمة — يلزم تأكيدك" : "Intent classification disagreement — confirmation required"}
+            </h2>
+            <p className="mt-2 text-sm">
+              {isAr
+                ? "اختلف المحلل الحالي ومحرك القرار. لم يتم توليد المطالبة بعد. راجع الاختلافات، ثم أكد المتابعة أو ألغِ وعدّل الطلب أو نوع المهمة."
+                : "The current classifier and decision engine disagree. No prompt has been generated yet. Review the differences, then explicitly continue or cancel and revise the request or task type."}
+            </p>
+            <div className="mt-3 space-y-2">
+              {pendingAnalyzerReview.differences.map((difference) => (
+                <div key={difference.field} className="rounded border bg-background/70 p-3 text-sm">
+                  <strong>{difference.field}</strong>: {difference.legacyValue}
+                  {difference.normalizedLegacyValue ? ` (${isAr ? "التصنيف الموحّد" : "normalized"}: ${difference.normalizedLegacyValue})` : ""}
+                  {" → "}{difference.decisionValue}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => run(true)} className="whitespace-normal">
+                {isAr ? "تأكيد المتابعة بالتصنيف الحالي" : "Continue with current Workbench classification"}
+              </Button>
+              <Button variant="outline" onClick={() => setPendingAnalyzerReview(null)}>
+                {isAr ? "إلغاء والعودة للتعديل" : "Cancel and revise"}
+              </Button>
+            </div>
+          </section>
+        )}
         <section className="workbench-request mb-10">
           <div className="mb-6 text-center">
             <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">
@@ -440,7 +487,7 @@ export function Workbench() {
           <div className="grid gap-5 md:grid-cols-[1fr_280px]">
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => { setInput(e.target.value); setPendingAnalyzerReview(null); }}
               rows={5}
               aria-label={t("describe")}
               placeholder={t("placeholder")}
@@ -453,7 +500,7 @@ export function Workbench() {
               <select
                 id="archetype-choice"
                 value={override}
-                onChange={(e) => setOverride(e.target.value as Archetype | "")}
+                onChange={(e) => { setOverride(e.target.value as Archetype | ""); setPendingAnalyzerReview(null); }}
                 className={inputCls}
               >
                 <option value="">{t("auto")}</option>
@@ -464,7 +511,7 @@ export function Workbench() {
                 ))}
               </select>
               <Button
-                onClick={run}
+                onClick={() => run()}
                 disabled={!input.trim()}
                 className="mt-4 h-12 w-full whitespace-normal rounded-md text-sm font-semibold"
               >
