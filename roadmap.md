@@ -40,6 +40,7 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Record feedback as a learning candidate, not an automatic policy/profile mutation.
 - [ ] Require human review, diff, approval/rejection, provenance, and rollback before adopting a candidate.
 - [ ] Add tests for version migration, conflicting traits, rejected candidates, rollback, and tenant isolation.
+- [x] Add deterministic cognitive-profile diff and rollback primitives; rollback restores earlier content as a new monotonically increasing version and records actor/source versions without mutating history.
 
 ## 05 — Retrieval and evidence governance
 - [ ] Implement hybrid retrieval with explicit source references, freshness, relevance, and permission filters.
