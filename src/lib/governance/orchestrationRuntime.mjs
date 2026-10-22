@@ -139,6 +139,9 @@ export function recordOrchestrationAttempt(run, stepId, result) {
     at: new Date().toISOString(),
   });
   const attempts = [...step.attempts, attempt];
+  if (result.evidence !== undefined && !Array.isArray(result.evidence)) {
+    throw new TypeError("Attempt evidence must be an array when provided");
+  }
   const evidence = result.evidence === undefined ? step.evidence : [
     ...step.evidence,
     ...result.evidence.filter((item) => item && typeof item.sourceId === "string" && item.sourceId.trim())
@@ -156,7 +159,6 @@ export function recordOrchestrationAttempt(run, stepId, result) {
   };
   const steps = run.steps.map((item, i) => i === index ? updated : item);
   const anyFailed = steps.some((item) => item.status === "failed");
-  const allDone = steps.every((item) => item.status === "verified");
   const nextStatus = anyFailed ? "failed" : allDone ? "succeeded" : "running";
   const next = { ...run, status: nextStatus, steps };
   return snapshot(next, { events: [...run.events, event(run, "attempt_recorded", id, {
