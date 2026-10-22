@@ -363,3 +363,14 @@ test("canonical Prompt IR enables injection and data-leakage protections by defa
   assert.equal(result.specification.security.dataLeakageProtection, true);
   assert.equal(result.specification.failureHandling.onSecurityViolation, "refuse");
 });
+
+
+test("Arabic reference cases preserve language detection and supported task classification", () => {
+  const translation = decisionEngine.analyzeIntent("ترجم هذه الفقرة إلى الإنجليزية", "ar");
+  assert.equal(translation.taskType, "translation");
+  assert.equal(translation.detectedLanguage, "ar");
+  const research = decisionEngine.analyzeIntent("ابحث عن مصادر موثوقة حول سلامة الطيران", "ar");
+  assert.equal(research.taskType, "research");
+  assert.equal(research.detectedLanguage, "ar");
+  assert.equal(research.riskLevel, "critical");
+});
