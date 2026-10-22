@@ -2,7 +2,7 @@ export const TELEMETRY_LEVELS = ["info", "high-risk", "intent-drift", "policy-vi
 
 /**
  * Parse an untrusted SSE message into a bounded audit event.
- * Plain-text SSE is supported; malformed structured JSON is not silently accepted.
+ * Plain-text SSE is supported; JSON-shaped messages must pass schema checks.
  */
 export function parseTelemetryEvent(raw) {
   if (typeof raw !== "string" || raw.length === 0 || raw.length > 20_000) return null;
@@ -34,7 +34,7 @@ export function parseTelemetryEvent(raw) {
 
 function cleanText(value, maxLength) {
   return value
-    .replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
     .trim()
     .slice(0, maxLength);
 }
