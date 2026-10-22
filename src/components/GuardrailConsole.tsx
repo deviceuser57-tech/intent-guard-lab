@@ -459,6 +459,11 @@ export function GuardrailConsole({
             {ar ? "مسار القرار التفاعلي" : "Interactive decision flow"}
           </h3>
           <span className="text-xs text-muted-foreground">{ar ? "اختر مرحلة لفحصها" : "Select a stage to inspect"}</span>
+          <span className="w-full text-xs text-muted-foreground">
+            {ar
+              ? "عرض توضيحي مبني على الحالة الحالية؛ ليس سجل تنفيذ فعليًا."
+              : "Illustrative view derived from current state; not an actual execution trace."}
+          </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-5">
           {[
