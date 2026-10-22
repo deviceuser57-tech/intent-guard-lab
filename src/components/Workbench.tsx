@@ -44,7 +44,7 @@ import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdap
 import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { RequestAssistant } from "@/components/RequestAssistant";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
-import { prepareAssistantAdoption } from "@/lib/prompt/requestAssistant";
+import { prepareAssistantAdoption, resolveAssistantGeneration } from "@/lib/prompt/requestAssistant";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, FileCode2, Globe2 } from "lucide-react";
 
@@ -285,11 +285,10 @@ export function Workbench() {
 
   const run = useCallback(() => {
     if (!input.trim()) return;
-    const adopted = assistantAdoptionRef.current;
-    const preserveAdopted = adopted?.source === input;
-    if (!preserveAdopted) assistantAdoptionRef.current = null;
-    const a = preserveAdopted ? adopted.analysis : analyzeIntent(input, override || null);
-    const sp = preserveAdopted ? adopted.specification : defaultSpec(input, a);
+    const generation = resolveAssistantGeneration(input, override, assistantAdoptionRef.current);
+    if (!generation.preserved) assistantAdoptionRef.current = null;
+    const a = generation.analysis;
+    const sp = generation.specification;
     setAiOv(null);
     if (!preserveAdopted) setPlaygroundInitialValues({});
     setPlaygroundRevision((revision) => revision + 1);
