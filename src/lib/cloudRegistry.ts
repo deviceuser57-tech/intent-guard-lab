@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
 export interface RegistrySnapshot {
@@ -10,7 +10,7 @@ let currentUserId: string | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let pending: RegistrySnapshot | null = null;
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && isSupabaseConfigured) {
   void supabase.auth.getSession().then(({ data }) => {
     currentUserId = data.session?.user.id ?? null;
   });
@@ -32,6 +32,7 @@ if (typeof window !== "undefined") {
 }
 
 export async function readCloudRegistry(): Promise<RegistrySnapshot | null> {
+  if (!isSupabaseConfigured) return null;
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) return null;
   const { data, error } = await supabase
@@ -44,6 +45,7 @@ export async function readCloudRegistry(): Promise<RegistrySnapshot | null> {
 }
 
 export async function writeCloudRegistry(snapshot: RegistrySnapshot): Promise<void> {
+  if (!isSupabaseConfigured) return;
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) return;
   const { error } = await supabase.from("prompt_registries").upsert({
