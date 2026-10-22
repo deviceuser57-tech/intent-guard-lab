@@ -114,3 +114,14 @@ test("run creation rejects cyclic dependencies and freezes dependency lists", ()
   const run = createOrchestrationRun(plan());
   assert.equal(Object.isFrozen(run.steps[1].dependsOn), true);
 });
+
+
+test("rejects malformed evidence payloads instead of trusting their shape", () => {
+  let run = createOrchestrationRun({ id: "evidence", requiresHumanApproval: false, steps: [
+    { id: "work", specialist: "worker", objective: "Do work", dependsOn: [] },
+  ] });
+  run = startOrchestrationStep(run, "work");
+  assert.throws(() => recordOrchestrationAttempt(run, "work", {
+    outcome: "success", evidence: "not-an-array",
+  }), /evidence must be an array/);
+});
