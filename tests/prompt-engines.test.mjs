@@ -98,6 +98,14 @@ test("analyzer audit reports task and risk drift without silently choosing a win
   assert.equal(audit.decision.taskType, "text_analysis");
 });
 
+test("Workbench blocks fresh prompt generation until analyzer drift is acknowledged", async () => {
+  const workbench = await readFile(fileURLToPath(new URL("src/components/Workbench.tsx", root)), "utf8");
+  assert.match(workbench, /if \(!generation\.preserved && !acceptAnalyzerDrift\)/);
+  assert.match(workbench, /requiresAnalyzerReview\(candidate\.analyzerAudit\)/);
+  assert.match(workbench, /onClick=\{\(\) => run\(true\)\}/);
+  assert.match(workbench, /Intent classification disagreement — confirmation required/);
+});
+
 test("analyzer drift requires explicit review before generation", () => {
   const disagreement = analyzerAuditModule.auditIntentAnalyzers(
     "Please review this contract for legal compliance.",
