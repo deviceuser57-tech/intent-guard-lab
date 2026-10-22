@@ -242,6 +242,11 @@ export function Workbench() {
   const [spec, setSpec] = useState<Specification | null>(null);
   const [playgroundInitialValues, setPlaygroundInitialValues] = useState<Record<string, string>>({});
   const [playgroundRevision, setPlaygroundRevision] = useState(0);
+  const assistantAdoptionRef = useRef<{
+    source: string;
+    analysis: IntentAnalysis;
+    specification: Specification;
+  } | null>(null);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -280,10 +285,13 @@ export function Workbench() {
 
   const run = useCallback(() => {
     if (!input.trim()) return;
-    const a = analyzeIntent(input, override || null);
-    const sp = defaultSpec(input, a);
+    const adopted = assistantAdoptionRef.current;
+    const preserveAdopted = adopted?.source === input;
+    if (!preserveAdopted) assistantAdoptionRef.current = null;
+    const a = preserveAdopted ? adopted.analysis : analyzeIntent(input, override || null);
+    const sp = preserveAdopted ? adopted.specification : defaultSpec(input, a);
     setAiOv(null);
-    setPlaygroundInitialValues({});
+    if (!preserveAdopted) setPlaygroundInitialValues({});
     setPlaygroundRevision((revision) => revision + 1);
     setAnalysis(a);
     setSpec(sp);
@@ -473,6 +481,7 @@ export function Workbench() {
             onInput={setInput}
             onAdopt={(draft) => {
               const adopted = prepareAssistantAdoption(draft);
+              assistantAdoptionRef.current = adopted;
               setInput(adopted.source);
               setOverride(adopted.specification.archetype);
               setAiOv(null);
