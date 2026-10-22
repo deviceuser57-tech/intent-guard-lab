@@ -320,6 +320,7 @@ test("evaluation metrics and token totals remain internally consistent", () => {
 
 globalThis.__intentGuardTestAnalyzerAudit = analyzerAuditModule;
 globalThis.__intentGuardTestReadiness = readinessModule;
+const canonicalCompilerModule = await loadTypeScript("src/lib/prompt/canonicalCompiler.ts");
 const promptIRModule = await loadTypeScript("src/lib/prompt/ir.ts", (source) =>
   source
     .replace(
@@ -373,4 +374,30 @@ test("Arabic reference cases preserve language detection and supported task clas
   assert.equal(research.taskType, "research");
   assert.equal(research.detectedLanguage, "ar");
   assert.equal(research.riskLevel, "critical");
+});
+
+
+test("canonical Prompt IR drives the compiled Workbench artifact", () => {
+  const result = promptIRModule.buildPromptIR(
+    "Review the supplied documents and explain the findings.",
+    {
+      goal: "Review supplied documents and explain findings with traceable evidence.",
+      archetype: "research",
+      persona: "Research analyst",
+      audience: "Project team",
+      constraints: ["Do not invent evidence", "Cite source documents", "State unknowns"],
+      reasoning: "brief",
+      outputFormat: "markdown",
+      maxWords: 800,
+      outputSchema: "",
+      examples: "",
+    },
+    "en",
+  );
+  const compiled = canonicalCompilerModule.compilePromptIR(result, "gpt-4o-mini", "openai", "en");
+  assert.match(compiled.system, /Objective/);
+  assert.match(compiled.system, /Grounding/);
+  assert.match(compiled.user, /{{user_request}}/);
+  assert.match(compiled.outputContract, /markdown/);
+  assert.deepEqual(compiled.variables, ["user_request"]);
 });
