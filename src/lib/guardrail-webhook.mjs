@@ -25,7 +25,7 @@ export function validateWebhookTarget(input) {
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   const privateHostname =
     host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
-    host === "::1" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80:");
+    host === "::1" || (host.includes(":") && /^(fc|fd|fe80:)/.test(host));
   const parts = host.split(".");
   const ipv4 = parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
   const privateIPv4 = ipv4 && (
