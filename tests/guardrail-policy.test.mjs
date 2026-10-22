@@ -68,3 +68,26 @@ test("neutralizes formula-like CSV cells and escapes quotes", () => {
   assert.equal(csvCell("=1+1"), '"\'=1+1"');
   assert.equal(csvCell('hello "world"'), '"hello ""world"""');
 });
+
+
+test("rejects imported policies whose content is invalid even when the outer shape is valid", () => {
+  assert.equal(
+    validatePolicy({ id: "a", name: "A", mode: "json", content: "{broken", enabled: true }),
+    false,
+  );
+  assert.equal(
+    validatePolicy({ id: "a", name: "A", mode: "natural", content: "short", enabled: true }),
+    false,
+  );
+});
+
+test("rejects whitespace-only policy identifiers and names", () => {
+  assert.equal(
+    validatePolicy({ id: "   ", name: "A", mode: "json", content: valid, enabled: true }),
+    false,
+  );
+  assert.equal(
+    validatePolicy({ id: "a", name: "   ", mode: "json", content: valid, enabled: true }),
+    false,
+  );
+});
