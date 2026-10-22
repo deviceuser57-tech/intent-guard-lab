@@ -4,11 +4,14 @@ import {
   scoreOutput,
   validatePolicy,
   validatePolicyContent,
+  normalizeImportedPolicies,
   type Policy,
 } from "@/lib/guardrail-policy.mjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { runPrompt } from "@/lib/ai.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { parseTelemetryEvent } from "@/lib/guardrail-telemetry.mjs";
+import { validateWebhookTarget } from "@/lib/guardrail-webhook.mjs";
 
 type LogLevel = "info" | "high-risk" | "intent-drift" | "policy-violation";
 type AuditLog = { id: string; time: string; level: LogLevel; message: string; source: string };
@@ -185,24 +188,28 @@ export function GuardrailConsole({
       source.onopen = () => setStreamState("Connected to SSE");
       source.onerror = () => setStreamState("SSE connection error / reconnecting");
       source.onmessage = (event) => {
-        let parsed: Partial<AuditLog> = {};
-        try {
-          parsed = JSON.parse(event.data) as Partial<AuditLog>;
-        } catch {
-          /* plain-text SSE */
+        const parsed = parseTelemetryEvent(event.data);
+        if (!parsed) {
+          setLogs((current) =>
+            [
+              {
+                id: crypto.randomUUID(),
+                time: new Date().toISOString(),
+                level: "high-risk",
+                message: "Rejected malformed or oversized SSE event.",
+                source: "telemetry validator",
+              },
+              ...current,
+            ].slice(0, 500),
+          );
+          return;
         }
-        const allowed: LogLevel[] = ["info", "high-risk", "intent-drift", "policy-violation"];
-        const eventLevel = allowed.includes(parsed.level as LogLevel)
-          ? (parsed.level as LogLevel)
-          : "info";
         setLogs((current) =>
           [
             {
               id: crypto.randomUUID(),
               time: new Date().toISOString(),
-              level: eventLevel,
-              message: parsed.message ?? event.data,
-              source: parsed.source ?? "SSE",
+              ...parsed,
             },
             ...current,
           ].slice(0, 500),
@@ -308,16 +315,7 @@ export function GuardrailConsole({
           : [parsed];
       if (!Array.isArray(entries) || entries.length === 0)
         throw new Error("Expected a policy object, an array, or an export with a policies array.");
-      const normalized: Policy[] = [];
-      for (const entry of entries) {
-        if (!validatePolicy(entry))
-          throw new Error(
-            "Each imported policy must include id, name, mode, content, and enabled.",
-          );
-        const error = validatePolicyContent(entry.mode, entry.content);
-        if (error) throw new Error(entry.name + ": " + error);
-        normalized.push(entry);
-      }
+      const normalized = normalizeImportedPolicies(entries);
       const merged = [
         ...savedPolicies.filter((old) => !normalized.some((item) => item.id === old.id)),
         ...normalized,
@@ -336,15 +334,12 @@ export function GuardrailConsole({
       setAlertStatus("Enter a webhook URL first. No alert was sent.");
       return;
     }
-    let target: URL;
-    try {
-      target = new URL(webhookUrl);
-      if (!["https:", "http:"].includes(target.protocol) || target.username || target.password)
-        throw new Error("Use an HTTP(S) URL without embedded credentials.");
-    } catch (error) {
-      setAlertStatus("Invalid webhook URL: " + (error as Error).message);
+    const validation = validateWebhookTarget(webhookUrl);
+    if (!validation.valid || !validation.url) {
+      setAlertStatus("Invalid webhook URL: " + (validation.reason ?? "URL rejected."));
       return;
     }
+    const target = validation.url;
     if (driftRate < driftThreshold) {
       setAlertStatus(
         "Current estimated drift (" +
@@ -464,6 +459,11 @@ export function GuardrailConsole({
             {ar ? "مسار القرار التفاعلي" : "Interactive decision flow"}
           </h3>
           <span className="text-xs text-muted-foreground">{ar ? "اختر مرحلة لفحصها" : "Select a stage to inspect"}</span>
+          <span className="w-full text-xs text-muted-foreground">
+            {ar
+              ? "عرض توضيحي مبني على الحالة الحالية؛ ليس سجل تنفيذ فعليًا."
+              : "Illustrative view derived from current state; not an actual execution trace."}
+          </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-5">
           {[

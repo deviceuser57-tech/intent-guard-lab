@@ -159,8 +159,8 @@ export function buildPromptIR(
     },
     security: {
       trustHierarchy: ["system", "application", "user", "file", "rag", "tool", "model"],
-      injectionProtection: false,
-      dataLeakageProtection: false,
+      injectionProtection: true,
+      dataLeakageProtection: true,
       sensitiveDataPolicy: "warn",
     },
     tools: {

@@ -31,6 +31,27 @@ export function prepareAssistantAdoption(draft: AssistantDraft): AdoptedAssistan
   };
 }
 
+/** Preserve the user's reviewed specification until the source request changes. */
+export function resolveAssistantGeneration(
+  input: string,
+  override: Archetype | "",
+  adopted: AdoptedAssistantDraft | null,
+): { analysis: IntentAnalysis; specification: Specification; preserved: boolean } {
+  if (adopted && adopted.source === input) {
+    return {
+      analysis: adopted.analysis,
+      specification: adopted.specification,
+      preserved: true,
+    };
+  }
+  const analysis = analyzeIntent(input, override || null);
+  return {
+    analysis,
+    specification: defaultSpec(input, analysis),
+    preserved: false,
+  };
+}
+
 export function synthesizeRequest(source: string, answers: AssistantAnswers, documents: AdvancedControls["documents"], language: "ar" | "en", override?: Archetype): AssistantDraft {
   if (!source.trim()) throw new Error(language === "ar" ? "اكتب طلبك أولًا." : "Enter a request first.");
   const ar = language === "ar";

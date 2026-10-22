@@ -98,6 +98,28 @@ test("analyzer audit reports task and risk drift without silently choosing a win
   assert.equal(audit.decision.taskType, "text_analysis");
 });
 
+test("Workbench blocks fresh prompt generation until analyzer drift is acknowledged", async () => {
+  const workbench = await readFile(fileURLToPath(new URL("src/components/Workbench.tsx", root)), "utf8");
+  assert.match(workbench, /if \(!generation\.preserved && !acceptAnalyzerDrift\)/);
+  assert.match(workbench, /requiresAnalyzerReview\(candidate\.analyzerAudit\)/);
+  assert.match(workbench, /onClick=\{\(\) => run\(true\)\}/);
+  assert.match(workbench, /Intent classification disagreement — confirmation required/);
+});
+
+test("analyzer drift requires explicit review before generation", () => {
+  const disagreement = analyzerAuditModule.auditIntentAnalyzers(
+    "Please review this contract for legal compliance.",
+    "en",
+  );
+  assert.equal(analyzerAuditModule.requiresAnalyzerReview(disagreement), true);
+
+  const agreement = analyzerAuditModule.auditIntentAnalyzers(
+    "Hi",
+    "en",
+  );
+  assert.equal(analyzerAuditModule.requiresAnalyzerReview(agreement), false);
+});
+
 test("rule-derived decision confidence is not reported as directly measured", () => {
   const intent = decisionEngine.analyzeIntent("Write a short product description.", "en");
   const decisions = decisionEngine.decideComponents(intent);
@@ -293,4 +315,89 @@ test("evaluation metrics and token totals remain internally consistent", () => {
     "citationPrecision",
     "tokenEfficiency",
   ]);
+});
+
+
+globalThis.__intentGuardTestAnalyzerAudit = analyzerAuditModule;
+globalThis.__intentGuardTestReadiness = readinessModule;
+const canonicalCompilerModule = await loadTypeScript("src/lib/prompt/canonicalCompiler.ts");
+const promptIRModule = await loadTypeScript("src/lib/prompt/ir.ts", (source) =>
+  source
+    .replace(
+      'import { analyzeIntent, decideComponents } from "./decisionEngine";',
+      "const { analyzeIntent, decideComponents } = globalThis.__intentGuardTestDecisionEngine;",
+    )
+    .replace(
+      'import { auditIntentAnalyzers, type AnalyzerAudit } from "./analyzerAudit";',
+      "const { auditIntentAnalyzers } = globalThis.__intentGuardTestAnalyzerAudit;",
+    )
+    .replace(
+      'import { lintPrompt } from "./linter";',
+      "const { lintPrompt } = globalThis.__intentGuardTestLinter;",
+    )
+    .replace(
+      'import { assessReadiness } from "./readiness";',
+      "const { assessReadiness } = globalThis.__intentGuardTestReadiness;",
+    )
+    .replace('import type { Specification as WorkbenchSpecification } from "./types";', "")
+    .replace('import type {\n  PromptSpecification,\n  TaskType as IRTaskType,\n  IntentAnalysis as IRIntentAnalysis,\n  ValidationFinding,\n  ReadinessAssessment,\n  PromptComponentDecision,\n} from "./specification";', ""),
+);
+
+test("canonical Prompt IR enables injection and data-leakage protections by default", () => {
+  const result = promptIRModule.buildPromptIR(
+    "Review the supplied documents and explain the findings.",
+    {
+      goal: "Review supplied documents and explain findings with traceable evidence.",
+      archetype: "research",
+      persona: "Research analyst",
+      audience: "Project team",
+      constraints: ["Do not invent evidence", "Cite source documents", "State unknowns"],
+      reasoning: "brief",
+      outputFormat: "markdown",
+      maxWords: 800,
+      outputSchema: "",
+      examples: "",
+    },
+    "en",
+  );
+  assert.equal(result.specification.security.injectionProtection, true);
+  assert.equal(result.specification.security.dataLeakageProtection, true);
+  assert.equal(result.specification.failureHandling.onSecurityViolation, "refuse");
+});
+
+
+test("Arabic reference cases preserve language detection and supported task classification", () => {
+  const translation = decisionEngine.analyzeIntent("ترجم هذه الفقرة إلى الإنجليزية", "ar");
+  assert.equal(translation.taskType, "translation");
+  assert.equal(translation.detectedLanguage, "ar");
+  const research = decisionEngine.analyzeIntent("ابحث عن مصادر موثوقة حول سلامة الطيران", "ar");
+  assert.equal(research.taskType, "research");
+  assert.equal(research.detectedLanguage, "ar");
+  assert.equal(research.riskLevel, "critical");
+});
+
+
+test("canonical Prompt IR drives the compiled Workbench artifact", () => {
+  const result = promptIRModule.buildPromptIR(
+    "Review the supplied documents and explain the findings.",
+    {
+      goal: "Review supplied documents and explain findings with traceable evidence.",
+      archetype: "research",
+      persona: "Research analyst",
+      audience: "Project team",
+      constraints: ["Do not invent evidence", "Cite source documents", "State unknowns"],
+      reasoning: "brief",
+      outputFormat: "markdown",
+      maxWords: 800,
+      outputSchema: "",
+      examples: "",
+    },
+    "en",
+  );
+  const compiled = canonicalCompilerModule.compilePromptIR(result, "gpt-4o-mini", "openai", "en");
+  assert.match(compiled.system, /Objective/);
+  assert.match(compiled.system, /Grounding/);
+  assert.match(compiled.user, /{{user_request}}/);
+  assert.match(compiled.outputContract, /markdown/);
+  assert.deepEqual(compiled.variables, ["user_request"]);
 });

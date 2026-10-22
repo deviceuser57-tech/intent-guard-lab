@@ -102,3 +102,9 @@ export function auditIntentAnalyzers(
     differences,
   };
 }
+
+
+/** Require explicit user acknowledgment before generating from conflicting classifications. */
+export function requiresAnalyzerReview(audit: Pick<AnalyzerAudit, "differences">): boolean {
+  return audit.differences.length > 0;
+}

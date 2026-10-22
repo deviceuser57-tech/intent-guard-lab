@@ -44,7 +44,9 @@ import { adaptPromptForModel, type ProviderFamily } from "@/lib/prompt/modelAdap
 import { HelpUserGuide } from "@/components/HelpUserGuide";
 import { RequestAssistant } from "@/components/RequestAssistant";
 import { buildPromptIR, type PromptIRResult } from "@/lib/prompt/ir";
-import { prepareAssistantAdoption } from "@/lib/prompt/requestAssistant";
+import { compilePromptIR } from "@/lib/prompt/canonicalCompiler";
+import { requiresAnalyzerReview } from "@/lib/prompt/analyzerAudit";
+import { prepareAssistantAdoption, resolveAssistantGeneration } from "@/lib/prompt/requestAssistant";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, FileCode2, Globe2 } from "lucide-react";
 
@@ -242,6 +244,12 @@ export function Workbench() {
   const [spec, setSpec] = useState<Specification | null>(null);
   const [playgroundInitialValues, setPlaygroundInitialValues] = useState<Record<string, string>>({});
   const [playgroundRevision, setPlaygroundRevision] = useState(0);
+  const [pendingAnalyzerReview, setPendingAnalyzerReview] = useState<Pick<PromptIRResult["analyzerAudit"], "differences" | "legacy" | "decision"> | null>(null);
+  const assistantAdoptionRef = useRef<{
+    source: string;
+    analysis: IntentAnalysis;
+    specification: Specification;
+  } | null>(null);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -260,9 +268,13 @@ export function Workbench() {
     const h = setTimeout(() => setDSpec(spec), 300);
     return () => clearTimeout(h);
   }, [spec]); // eslint-disable-line react-hooks/exhaustive-deps
+  const governance = useMemo(
+    () => (dSpec ? buildPromptIR(dSpec.goal || input, dSpec, lang === "ar" ? "ar" : "en") : null),
+    [dSpec, input, lang],
+  );
   const base = useMemo(
-    () => (dSpec && analysis ? compile(dSpec, analysis) : null),
-    [dSpec, analysis],
+    () => (governance ? compilePromptIR(governance, providerConfig.model, providerConfig.provider, lang === "ar" ? "ar" : "en") : null),
+    [governance, providerConfig.model, providerConfig.provider, lang],
   );
   const compiled = useMemo(
     () => (base && aiOv ? { ...base, system: aiOv.system, user: aiOv.user } : base),
@@ -273,23 +285,37 @@ export function Workbench() {
     () => (compiled && dSpec && analysis ? evaluate(compiled, dSpec, analysis) : null),
     [compiled, dSpec, analysis],
   );
-  const governance = useMemo(
-    () => (dSpec ? buildPromptIR(dSpec.goal || input, dSpec, lang === "ar" ? "ar" : "en") : null),
-    [dSpec, input, lang],
-  );
 
-  const run = useCallback(() => {
+  const run = useCallback((acceptAnalyzerDrift = false) => {
     if (!input.trim()) return;
-    const a = analyzeIntent(input, override || null);
-    const sp = defaultSpec(input, a);
+    const generation = resolveAssistantGeneration(input, override, assistantAdoptionRef.current);
+
+    // Do not silently choose between the legacy classifier and the decision engine.
+    // Reviewed/adopted specifications remain preserved; fresh requests require acknowledgment on drift.
+    if (!generation.preserved && !acceptAnalyzerDrift) {
+      const candidate = buildPromptIR(input, generation.specification, lang === "ar" ? "ar" : "en");
+      if (requiresAnalyzerReview(candidate.analyzerAudit)) {
+        setPendingAnalyzerReview({
+          differences: candidate.analyzerAudit.differences,
+          legacy: candidate.analyzerAudit.legacy,
+          decision: candidate.analyzerAudit.decision,
+        });
+        return;
+      }
+    }
+
+    setPendingAnalyzerReview(null);
+    if (!generation.preserved) assistantAdoptionRef.current = null;
+    const a = generation.analysis;
+    const sp = generation.specification;
     setAiOv(null);
-    setPlaygroundInitialValues({});
+    if (!preserveAdopted) setPlaygroundInitialValues({});
     setPlaygroundRevision((revision) => revision + 1);
     setAnalysis(a);
     setSpec(sp);
     setDSpec(sp);
     setTab(mode === "quick" ? "compiled" : "intent");
-  }, [input, override, mode]);
+  }, [input, override, mode, lang]);
 
   // Core analysis and registry panels are available in every mode.
   const tabs: Tab[] = [
@@ -424,6 +450,35 @@ export function Workbench() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        {pendingAnalyzerReview && (
+          <section role="alert" aria-live="assertive" className="mb-6 rounded-lg border border-amber-500/50 bg-amber-500/10 p-4">
+            <h2 className="text-base font-semibold">
+              {isAr ? "تعارض في تصنيف المهمة — يلزم تأكيدك" : "Intent classification disagreement — confirmation required"}
+            </h2>
+            <p className="mt-2 text-sm">
+              {isAr
+                ? "اختلف المحلل الحالي ومحرك القرار. لم يتم توليد المطالبة بعد. راجع الاختلافات، ثم أكد المتابعة أو ألغِ وعدّل الطلب أو نوع المهمة."
+                : "The current classifier and decision engine disagree. No prompt has been generated yet. Review the differences, then explicitly continue or cancel and revise the request or task type."}
+            </p>
+            <div className="mt-3 space-y-2">
+              {pendingAnalyzerReview.differences.map((difference) => (
+                <div key={difference.field} className="rounded border bg-background/70 p-3 text-sm">
+                  <strong>{difference.field}</strong>: {difference.legacyValue}
+                  {difference.normalizedLegacyValue ? ` (${isAr ? "التصنيف الموحّد" : "normalized"}: ${difference.normalizedLegacyValue})` : ""}
+                  {" → "}{difference.decisionValue}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => run(true)} className="whitespace-normal">
+                {isAr ? "تأكيد المتابعة بالتصنيف الحالي" : "Continue with current Workbench classification"}
+              </Button>
+              <Button variant="outline" onClick={() => setPendingAnalyzerReview(null)}>
+                {isAr ? "إلغاء والعودة للتعديل" : "Cancel and revise"}
+              </Button>
+            </div>
+          </section>
+        )}
         <section className="workbench-request mb-10">
           <div className="mb-6 text-center">
             <h2 className="workbench-section-title text-2xl font-bold sm:text-3xl">
@@ -433,7 +488,7 @@ export function Workbench() {
           <div className="grid gap-5 md:grid-cols-[1fr_280px]">
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => { setInput(e.target.value); setPendingAnalyzerReview(null); }}
               rows={5}
               aria-label={t("describe")}
               placeholder={t("placeholder")}
@@ -446,7 +501,7 @@ export function Workbench() {
               <select
                 id="archetype-choice"
                 value={override}
-                onChange={(e) => setOverride(e.target.value as Archetype | "")}
+                onChange={(e) => { setOverride(e.target.value as Archetype | ""); setPendingAnalyzerReview(null); }}
                 className={inputCls}
               >
                 <option value="">{t("auto")}</option>
@@ -457,7 +512,7 @@ export function Workbench() {
                 ))}
               </select>
               <Button
-                onClick={run}
+                onClick={() => run()}
                 disabled={!input.trim()}
                 className="mt-4 h-12 w-full whitespace-normal rounded-md text-sm font-semibold"
               >
@@ -473,6 +528,7 @@ export function Workbench() {
             onInput={setInput}
             onAdopt={(draft) => {
               const adopted = prepareAssistantAdoption(draft);
+              assistantAdoptionRef.current = adopted;
               setInput(adopted.source);
               setOverride(adopted.specification.archetype);
               setAiOv(null);

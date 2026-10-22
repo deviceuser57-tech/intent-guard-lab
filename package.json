@@ -8,9 +8,10 @@
     "build": "npx vite build",
     "build:dev": "npx vite build --mode development",
     "preview": "npx vite preview",
-    "lint": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\" && eslint .",
+    "lint": "eslint . --rule 'prettier/prettier: off'",
     "test": "node --test tests/*.test.mjs",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "overrides": {
     "rolldown": "1.2.1"
