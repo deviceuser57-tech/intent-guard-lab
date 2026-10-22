@@ -41,6 +41,7 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Require human review, diff, approval/rejection, provenance, and rollback before adopting a candidate.
 - [ ] Add tests for version migration, conflicting traits, rejected candidates, rollback, and tenant isolation.
 - [x] Add deterministic cognitive-profile diff and rollback primitives; rollback restores earlier content as a new monotonically increasing version and records actor/source versions without mutating history.
+- [x] Add regression tests for profile diff accuracy, monotonic rollback versioning, immutable history, invalid targets, duplicate versions, and cross-profile history rejection.
 
 ## 05 — Retrieval and evidence governance
 - [ ] Implement hybrid retrieval with explicit source references, freshness, relevance, and permission filters.
@@ -57,6 +58,7 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [ ] Add multimodal ingestion incrementally with explicit capability limits and source traceability.
 - [ ] Add deterministic tests for routing, tool failure, cancellation, retry bounds, and verification failure.
 - [x] Add a deterministic orchestration run state machine with human approval gates, dependency checks based on recorded verified steps, bounded retries, verification state, evidence snapshots, immutable returned snapshots, cancellation, and terminal-state guards. This records state only; it does not execute tools or persist authoritative audit records.
+- [x] Add tests for approval gates, dependency enforcement, bounded retries including verification failures, cancellation, cycle rejection, malformed evidence, and immutable snapshots.
 
 ## 07 — Enterprise governance
 - [x] Local Guardrails console includes an audit-log UI, severity filters/search, SSE connection, policy drafts, JSON/CSV export, webhook test alerts, and a sandbox/model-output comparison interface.
