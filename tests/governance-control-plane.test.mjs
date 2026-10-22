@@ -5,7 +5,10 @@ import {
   proposeLearningCandidate,
   reviewLearningCandidate,
   filterRetrievedDocuments,
+  retrieveKnowledge,
   createOrchestrationPlan,
+  authorizeOrchestrationStart,
+  canRunOrchestrationStep,
   authorizeAction,
 } from "../src/lib/governance/controlPlane.mjs";
 
@@ -55,4 +58,27 @@ test("authorization denies unknown roles, missing permissions, and cross-tenant 
   assert.equal(authorizeAction({ actor: { id: "u", role: "viewer" }, tenantId: "a", resourceTenantId: "b", permission: "knowledge:read" }).allowed, false);
   assert.equal(authorizeAction({ actor: { id: "u", role: "viewer" }, tenantId: "a", resourceTenantId: "a", permission: "policy:write" }).reason, "permission_denied");
   assert.equal(authorizeAction({ actor: { id: "u", role: "admin" }, tenantId: "a", resourceTenantId: "a", permission: "knowledge:read" }).allowed, true);
+});
+
+test("RAG retrieval applies access filters before relevance ranking", () => {
+  const docs = [
+    { id: "low", tenantId: "a", status: "approved", source: "kb", allowedRoles: ["reviewer"], content: "General operational notes", score: 1 },
+    { id: "match", tenantId: "a", status: "approved", source: "kb", allowedRoles: ["reviewer"], content: "Helideck operational safety checklist", score: 0.2 },
+    { id: "leak", tenantId: "b", status: "approved", source: "kb", allowedRoles: ["reviewer"], content: "Helideck secret checklist", score: 1 },
+  ];
+  const result = retrieveKnowledge("helideck safety checklist", docs, { tenantId: "a", roles: ["reviewer"], allowedSources: ["kb"] });
+  assert.deepEqual(result.map((doc) => doc.id), ["match", "low"]);
+  assert.equal(result[0].trust, "untrusted_reference_data");
+  assert.throws(() => retrieveKnowledge("  ", docs, { tenantId: "a", roles: ["reviewer"] }), /non-empty/);
+});
+
+test("high-risk orchestration requires approval and respects dependency completion", () => {
+  const plan = createOrchestrationPlan({ id: "sequence", task: "review", risk: "critical", steps: [
+    { id: "extract", specialist: "extractor", objective: "extract facts" },
+    { id: "verify", specialist: "verifier", objective: "verify facts", dependsOn: ["extract"] },
+  ] });
+  assert.equal(authorizeOrchestrationStart(plan).allowed, false);
+  assert.equal(authorizeOrchestrationStart(plan, "reviewer-1").allowed, true);
+  assert.equal(canRunOrchestrationStep(plan, "verify", []).allowed, false);
+  assert.equal(canRunOrchestrationStep(plan, "verify", ["extract"]).allowed, true);
 });
