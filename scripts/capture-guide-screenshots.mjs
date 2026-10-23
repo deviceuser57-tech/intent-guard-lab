@@ -75,7 +75,7 @@ try {
 
   await page.getByRole("button", { name: "Security / Validation" }).click();
   await page.locator(".workbench-content-security").waitFor({ state: "visible" });
-  await page.getByText(/Security score/).waitFor({ state: "visible" });
+  await page.getByRole("heading", { name: /Security score/ }).waitFor({ state: "visible" });
   await page.screenshot({
     path: `${outputDir}/05-security-validation.png`,
     fullPage: true,
