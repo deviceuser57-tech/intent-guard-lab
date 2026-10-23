@@ -33,3 +33,17 @@ test("rejects URL fragments and IPv6 loopback", () => {
   assert.equal(validateWebhookTarget("https://hooks.example.com/hook#secret").valid, false);
   assert.equal(validateWebhookTarget("https://[::1]/hook").valid, false);
 });
+
+test("blocks IPv6 unspecified, link-local, unique-local, multicast, and IPv4-mapped literals", () => {
+  for (const url of [
+    "https://[::]/hook",
+    "https://[fc00::1]/hook",
+    "https://[fd12::1]/hook",
+    "https://[fe90::1]/hook",
+    "https://[febf::1]/hook",
+    "https://[ff02::1]/hook",
+    "https://[::ffff:127.0.0.1]/hook",
+  ]) {
+    assert.equal(validateWebhookTarget(url).valid, false, url);
+  }
+});

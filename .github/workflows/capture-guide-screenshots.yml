@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "src/**"
+      - "scripts/capture-guide-screenshots.mjs"
+      - "docs/**"
       - ".github/workflows/capture-guide-screenshots.yml"
   workflow_dispatch:
 
@@ -22,11 +25,15 @@ jobs:
           node-version: "22"
           cache: "npm"
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Install Playwright Chromium
-        run: |
-          npm install --no-save playwright
-          npx playwright install --with-deps chromium
+        run: npm install --no-audit --no-fund --package-lock=false
+      - name: Install Playwright package without changing the lockfile
+        timeout-minutes: 3
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright
+      - name: Download Chromium
+        timeout-minutes: 5
+        run: npx --no-install playwright install chromium
+      - name: Assert dependency setup did not modify the lockfile
+        run: git diff --exit-code -- package-lock.json
       - name: Build app
         run: npm run build
       - name: Start preview server
@@ -49,6 +56,6 @@ jobs:
             echo "Screenshots are unchanged."
           else
             git commit -m "Add real UI screenshots to user guide"
-            git pull --rebase origin main
-            git push
+            git -c rebase.autoStash=true pull --rebase origin main
+            git push origin HEAD:main
           fi

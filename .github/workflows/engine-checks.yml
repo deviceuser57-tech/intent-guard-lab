@@ -30,3 +30,27 @@ jobs:
         run: npm run lint
       - name: Build application
         run: npm run build
+      - name: Install Playwright package
+        timeout-minutes: 3
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright
+      - name: Download Chromium
+        timeout-minutes: 5
+        run: npx --no-install playwright install chromium
+      - name: Start browser acceptance server
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/acceptance-preview.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/acceptance-preview.log
+          exit 1
+      - name: Run browser acceptance checks
+        run: node scripts/capture-guide-screenshots.mjs
+      - name: Upload browser acceptance screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intent-guard-browser-acceptance
+          path: public/guide-screenshots/*.png
+          if-no-files-found: warn

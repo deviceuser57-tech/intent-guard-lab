@@ -6,10 +6,10 @@ This file is the source of truth for delivery scope. A code change is not consid
 - [x] Remove the tracked `.env` file from the current branch and add a non-secret `.env.example`.
 - [x] Ignore environment files and common private-key/certificate files.
 - [x] Make CI dependency installation tolerant of the current lockfile mismatch.
-- [x] Latest known CI and prompt-engine regression workflows passed on the earlier recorded head; re-check after the current changes.
+- [ ] Re-run CI and prompt-engine regression on the final closure commit; only checks tied to that exact SHA count as current evidence.
 - [ ] Rotate any credentials that were ever committed and confirm no deployment/collaborator dependency remains before purging sensitive history.
 - [ ] Review dependency and client/server secret boundaries; keep privileged credentials server-side.
-- [x] Re-ran dependency installation, tests, lint, and production build through GitHub Actions on commit `67b3612fd103e22c9645ff2127e3c931f6d0bb50`; both CI and prompt-engine regression workflows passed. Re-run after any subsequent source changes.
+- [x] Baseline CI and prompt-engine regression passed on commit `964997a79410fdf978f424bd4b2743dfa07a31af` before closure-hardening changes. This is baseline evidence only; it does not validate later commits.
 
 ## 01 — Free guided assistant and specification preservation
 - [x] Bilingual templates, matching suggestions, and step-by-step request questions exist.
@@ -98,3 +98,22 @@ A stage may be marked complete only when:
 
 ## Current execution note
 The GitHub connector can commit source changes and inspect GitHub Actions, but it does not establish that the user's local Windows environment or hosted preview was exercised. Do not mark browser/manual acceptance complete without recorded evidence.
+
+
+## Closure execution log — 2026-10-23
+
+This log distinguishes implemented code from verified acceptance. It does not waive any unchecked criterion above.
+
+- [x] PR #19 merged to `main` at `964997a79410fdf978f424bd4b2743dfa07a31af`; baseline CI and prompt-engine regression workflows passed on that commit.
+- [x] Identified the real failure in the screenshot-capture workflow: `npm install --no-save playwright` modified the lockfile/worktree, then the job committed screenshots and attempted a rebase with unstaged changes.
+- [x] Prepared PR #20 to install Playwright with `--package-lock=false`, use rebase autostash, and trigger screenshot capture when application/capture-script/docs change. The fix is not closed until the workflow itself passes after merge or dispatch.
+- [x] Added CI tests for tracked environment/private-key files, environment ignore rules, empty-only secret assignments in `.env.example`, and common high-confidence token formats. This is a pattern-based regression guard, not a substitute for GitHub secret scanning or history inspection.
+- [x] Expanded client-side webhook URL checks to block IPv6 unspecified, link-local, unique-local, multicast, and IPv4-mapped literals, with regression tests. This remains client-side defense-in-depth only; it is not a production SSRF boundary.
+- [ ] Verify CI, prompt-engine regression, and the updated screenshot workflow on their exact resulting commits.
+- [ ] Verify real browser acceptance of generation, linter, readiness, security, exports, playground, Arabic/RTL, and narrow viewport. Screenshots are evidence of rendered states, not a substitute for interaction assertions.
+- [ ] Rotate historical credentials and verify deployment/collaborator dependencies before any history rewrite. This requires owner-controlled secret rotation and explicit operational confirmation.
+- [ ] Complete server-backed identity/tenant authorization, durable immutable audit storage, authoritative policy enforcement, server-side webhook allowlisting/DNS/redirect checks, and delivery adapters. The current helpers and local console do not meet production enterprise closure.
+- [ ] Complete end-to-end integration of profile learning review, evidence retrieval, and orchestration execution into authenticated UI/API paths; pure utility tests alone do not close these criteria.
+- [ ] Complete visible-string/RTL audit, profile migration/conflict/tenant-isolation tests, retrieval permission/freshness/injection tests, SSE reconnect/500-event-bound tests, policy browser persistence tests, and measured drift baseline verification.
+
+**Current closure status:** partial. Do not label the roadmap fully closed while any required unchecked item remains. Android and commercialization remain explicitly deferred, not closure blockers for this scope.
