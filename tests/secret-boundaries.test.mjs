@@ -4,7 +4,6 @@ import { execFileSync } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
-const root = new URL("../", import.meta.url);
 const rootPath = new URL("../", import.meta.url).pathname;
 const git = (...args) => execFileSync("git", args, { cwd: rootPath, encoding: "utf8" }).trim();
 
