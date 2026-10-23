@@ -30,11 +30,12 @@ jobs:
         run: npm run lint
       - name: Build application
         run: npm run build
-      - name: Install Playwright Chromium
+      - name: Install Playwright package
+        timeout-minutes: 3
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund playwright
+      - name: Download Chromium
         timeout-minutes: 5
-        run: |
-          npm install --no-save --package-lock=false playwright
-          npx playwright install chromium
+        run: npx --no-install playwright install chromium
       - name: Start browser acceptance server
         run: |
           npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/acceptance-preview.log 2>&1 &
