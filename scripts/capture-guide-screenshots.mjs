@@ -30,6 +30,18 @@ try {
   });
 
   await page.getByRole("button", { name: "Generate prompt" }).click();
+  const driftAlert = page.getByRole("alert").filter({
+    hasText: "Intent classification disagreement",
+  });
+  if (await driftAlert.count()) {
+    await page.screenshot({
+      path: `${outputDir}/11-analyzer-review-gate.png`,
+      fullPage: true,
+    });
+    await driftAlert.getByRole("button", {
+      name: "Continue with current Workbench classification",
+    }).click();
+  }
   await page.getByRole("button", { name: "Compiled Prompts" }).waitFor({
     state: "visible",
   });
@@ -94,6 +106,9 @@ try {
 
   await page.getByRole("button", { name: "العربية" }).click();
   await page.getByRole("heading", { name: "منصة هندسة الأوامر" }).waitFor({ state: "visible" });
+  await page.waitForFunction(() =>
+    document.documentElement.lang === "ar" && document.documentElement.dir === "rtl",
+  );
   assert.equal(await page.evaluate(() => document.documentElement.lang), "ar");
   assert.equal(await page.evaluate(() => document.documentElement.dir), "rtl");
   await page.screenshot({
