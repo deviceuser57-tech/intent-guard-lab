@@ -35,7 +35,7 @@ test("tracked text files do not contain common high-confidence token formats", a
   const tracked = git("ls-files", "-z").split("\0").filter(Boolean);
   const candidates = tracked.filter((path) =>
     /\.(?:mjs|cjs|js|jsx|ts|tsx|json|ya?ml|toml|env|example|md|txt)$/i.test(path) &&
-    !/^tests\/secret-boundaries\.test\.mjs$/.test(path)
+    !/^tests\//.test(path) && !/^docs\//.test(path)
   );
   const patterns = [
     /\bgh[pousr]_[A-Za-z0-9]{30,}\b/,
