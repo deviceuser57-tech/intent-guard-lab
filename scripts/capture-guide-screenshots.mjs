@@ -33,7 +33,8 @@ try {
   const driftAlert = page.getByRole("alert").filter({
     hasText: "Intent classification disagreement",
   });
-  if (await driftAlert.count()) {
+  await driftAlert.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+  if (await driftAlert.isVisible().catch(() => false)) {
     await page.screenshot({
       path: `${outputDir}/11-analyzer-review-gate.png`,
       fullPage: true,
