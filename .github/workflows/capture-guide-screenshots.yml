@@ -27,9 +27,10 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --package-lock=false
       - name: Install Playwright Chromium without changing the lockfile
+        timeout-minutes: 5
         run: |
           npm install --no-save --package-lock=false playwright
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
       - name: Assert dependency setup did not modify the lockfile
         run: git diff --exit-code -- package-lock.json
       - name: Build app
