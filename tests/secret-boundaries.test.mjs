@@ -27,7 +27,7 @@ test("gitignore excludes environment files and private key containers", async ()
 test("example environment file is present and contains no populated secret assignments", async () => {
   await stat(join(rootPath, ".env.example"));
   const example = await readFile(new URL("../.env.example", import.meta.url), "utf8");
-  const populatedSecret = /^\s*(?:[A-Z0-9_]*(?:API_KEY|SECRET|TOKEN|PASSWORD|PRIVATE_KEY)[A-Z0-9_]*)\s*=\s*(?!$|#|\$\{)[^\r\n]+/gim;
+  const populatedSecret = /^[ \t]*(?:[A-Z0-9_]*(?:API_KEY|SECRET|TOKEN|PASSWORD|PRIVATE_KEY)[A-Z0-9_]*)[ \t]*=[ \t]*(?!$|#|\\$\\{)[^\\r\\n]+/gim;
   assert.equal([...example.matchAll(populatedSecret)].length, 0, ".env.example must use empty values or placeholders, not credentials");
 });
 
