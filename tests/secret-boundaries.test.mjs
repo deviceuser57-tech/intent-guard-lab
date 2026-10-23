@@ -31,7 +31,7 @@ test("example environment file is present and contains no populated secret assig
   assert.equal([...example.matchAll(populatedSecret)].length, 0, ".env.example must use empty values or placeholders, not credentials");
 });
 
-test("tracked text files do not contain common high-confidence token formats", () => {
+test("tracked text files do not contain common high-confidence token formats", async () => {
   const tracked = git("ls-files", "-z").split("\0").filter(Boolean);
   const candidates = tracked.filter((path) =>
     /\.(?:mjs|cjs|js|jsx|ts|tsx|json|ya?ml|toml|env|example|md|txt)$/i.test(path) &&
