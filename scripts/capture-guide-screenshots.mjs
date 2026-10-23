@@ -42,6 +42,7 @@ try {
     await driftAlert.getByRole("button", {
       name: "Continue with current Workbench classification",
     }).click();
+    await driftAlert.waitFor({ state: "hidden", timeout: 5000 });
   }
   await page.getByRole("button", { name: "Compiled Prompts" }).waitFor({
     state: "visible",
