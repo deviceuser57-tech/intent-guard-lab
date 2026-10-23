@@ -47,7 +47,7 @@ try {
   await page.locator(".workbench-content-intent").waitFor({ state: "visible" });
   assert.ok((await page.locator(".workbench-content-intent").innerText()).trim().length > 20);
   await page.screenshot({
-    path: `${outputDir}/03-intent-analysis.png`,
+    path: `${outputDir}/02-intent-analysis.png`,
     fullPage: true,
   });
 
@@ -55,7 +55,7 @@ try {
   await page.locator(".workbench-content-spec").waitFor({ state: "visible" });
   assert.ok((await page.locator(".workbench-content-spec").innerText()).trim().length > 20);
   await page.screenshot({
-    path: `${outputDir}/04-specification.png`,
+    path: `${outputDir}/03-specification.png`,
     fullPage: true,
   });
 
@@ -80,7 +80,7 @@ try {
   await page.locator(".workbench-content-playground").waitFor({ state: "visible" });
   await page.getByText("Fill variables", { exact: true }).waitFor({ state: "visible" });
   await page.screenshot({
-    path: `${outputDir}/07-playground.png`,
+    path: `${outputDir}/04-playground.png`,
     fullPage: true,
   });
 
