@@ -309,7 +309,7 @@ export function Workbench() {
     const a = generation.analysis;
     const sp = generation.specification;
     setAiOv(null);
-    if (!preserveAdopted) setPlaygroundInitialValues({});
+    if (!generation.preserved) setPlaygroundInitialValues({});
     setPlaygroundRevision((revision) => revision + 1);
     setAnalysis(a);
     setSpec(sp);
