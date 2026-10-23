@@ -120,12 +120,41 @@ try {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(250);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-  assert.equal(overflow, false, "Arabic layout must not overflow horizontally at 390px width");
+  const overflowDetails = await page.evaluate(() => {
+    const viewportWidth = window.innerWidth;
+    const offenders = [...document.querySelectorAll("body *")]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          className: typeof element.className === "string" ? element.className.slice(0, 100) : "",
+          text: (element.textContent ?? "").trim().slice(0, 60),
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          width: Math.round(rect.width),
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        };
+      })
+      .filter((element) => element.right > viewportWidth + 1 && element.width > 0)
+      .sort((a, b) => b.right - a.right)
+      .slice(0, 12);
+    return {
+      viewportWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      bodyWidth: document.body.scrollWidth,
+      offenders,
+    };
+  });
   await page.screenshot({
     path: `${outputDir}/10-arabic-mobile.png`,
     fullPage: true,
   });
+  assert.equal(
+    overflowDetails.documentWidth > overflowDetails.viewportWidth + 1,
+    false,
+    `Arabic layout must not overflow horizontally at 390px width: ${JSON.stringify(overflowDetails)}`,
+  );
 
   assert.deepEqual(pageErrors, [], `Browser runtime errors: ${pageErrors.join("; ")}`);
 } finally {
