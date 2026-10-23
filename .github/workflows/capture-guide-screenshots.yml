@@ -30,6 +30,8 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright
           npx playwright install --with-deps chromium
+      - name: Assert dependency setup did not modify the lockfile
+        run: git diff --exit-code -- package-lock.json
       - name: Build app
         run: npm run build
       - name: Start preview server
