@@ -24,22 +24,21 @@ export function analyzeWorkbookExtract(request: string, documents: { name: strin
       const header = /^Worksheet: (.+?) \| Rows:/.exec(line);
       if (header) { sheet = header[1]; sheets.push(sheet); continue; }
       if (!sheet) continue;
+      let last = "";
       for (const cell of line.split(" | ")) {
+        if (cell.startsWith("cached: ")) {
+          if (last && ERROR_RE.test(cell)) errorCells.push(last);
+          continue;
+        }
         const m = /^([A-Z]+\d+): (.*)$/.exec(cell);
         if (!m) continue;
         const [, address, value] = m;
-        const ref = `${sheet}!${address}`;
+        last = `${sheet}!${address}`;
         if (value.startsWith("=")) {
           formulaCount++;
-          if (/\[[^\]]+\]/.test(value) || /\.xls[xmb]?/i.test(value)) externalLinks.push(ref);
+          if (/\[[^\]]+\]/.test(value) || /\.xls[xmb]?/i.test(value)) externalLinks.push(last);
         }
-        if (ERROR_RE.test(value)) errorCells.push(ref);
-      }
-      // Cached value is its own " | " segment after a formula.
-      if (/cached: #/.test(line)) {
-        for (const seg of line.split(" | cached: ").slice(1)) {
-          if (ERROR_RE.test(seg.split(" | ")[0])) { /* already counted via formula cell text */ }
-        }
+        if (ERROR_RE.test(value)) errorCells.push(last);
       }
     }
   }
