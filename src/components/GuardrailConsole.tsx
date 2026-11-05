@@ -195,7 +195,7 @@ export function GuardrailConsole({
               {
                 id: crypto.randomUUID(),
                 time: new Date().toISOString(),
-                level: "high-risk",
+                level: "high-risk" as const,
                 message: "Rejected malformed or oversized SSE event.",
                 source: "telemetry validator",
               },
