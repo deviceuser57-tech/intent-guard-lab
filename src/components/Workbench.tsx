@@ -249,6 +249,7 @@ export function Workbench() {
     source: string;
     analysis: IntentAnalysis;
     specification: Specification;
+    inputValues: Record<string, string>;
   } | null>(null);
 
   useEffect(() => {
