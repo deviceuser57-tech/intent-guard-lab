@@ -1,5 +1,6 @@
 import { analyzeIntent } from "./intentAnalyzer";
 import { defaultSpec, DEFAULT_ADV } from "./compiler";
+import { analyzeWorkbookExtract, workbookContractConstraints, workbookOutputSchema } from "./workbookContract";
 import type { Archetype, IntentAnalysis, Specification, AdvancedControls } from "./types";
 
 export interface AssistantAnswers {
@@ -91,7 +92,7 @@ export function synthesizeRequest(source: string, answers: AssistantAnswers, doc
   const specification: Specification = { ...spec, goal, constraints, components, advanced,
     persona: excel ? (ar ? "خبير Excel وVBA ومراجعة سلامة المصنفات" : "Excel VBA and workbook integrity specialist") : spec.persona,
     audience: answers.audience.trim(), outputFormat: answers.format,
-    outputSchema: answers.format === "json" ? '{"summary":"string","findings":[],"missing_inputs":[]}' : (excel ? workbookOutputSchema(workbook, ar) || workbookOutputSchema({ ...workbook, auditSheets: ["_"] }, ar) : ""),
+    outputSchema: answers.format === "json" ? '{"summary":"string","findings":[],"missing_inputs":[]}' : (excel ? workbookOutputSchema(ar) : ""),
     examples: answers.details.trim(), variables: [{ name: "input", description: ar ? "المدخلات والملفات المتاحة" : "Available inputs and files", example: documents.map(d => d.name).join(", ") }],
   };
   return { source: source.trim(), specification, inputValues: assistantInputValues(specification) };

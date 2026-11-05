@@ -67,8 +67,7 @@ export function workbookContractConstraints(ins: WorkbookInsights, ar: boolean):
   return out;
 }
 
-export function workbookOutputSchema(ins: WorkbookInsights, ar: boolean): string {
-  if (!ins.auditSheets.length && !ins.sheets.length) return "";
+export function workbookOutputSchema(ar: boolean): string {
   return ar
     ? "1) وحدة VBA كاملة قابلة للتشغيل. 2) جدول التغييرات: الورقة | الخلية | المعادلة الأصلية | المعادلة الجديدة | سبب الإصلاح من سجل المراجعة. 3) قائمة ما لم يُصلح ولماذا."
     : "1) Complete runnable VBA module. 2) Change table: Sheet | Cell | Original formula | New formula | Audit-log reason. 3) List of items not repaired and why.";
