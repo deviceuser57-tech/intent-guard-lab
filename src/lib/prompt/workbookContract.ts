@@ -22,7 +22,7 @@ export function analyzeWorkbookExtract(request: string, documents: { name: strin
     let sheet = "";
     for (const line of doc.content.split("\n")) {
       const header = /^Worksheet: (.+?) \| Rows:/.exec(line);
-      if (header) { sheet = header[1]; sheets.push(sheet); continue; }
+      if (header) { sheet = header[1] ?? ""; sheets.push(sheet); continue; }
       if (!sheet) continue;
       let last = "";
       for (const cell of line.split(" | ")) {
@@ -32,7 +32,7 @@ export function analyzeWorkbookExtract(request: string, documents: { name: strin
         }
         const m = /^([A-Z]+\d+): (.*)$/.exec(cell);
         if (!m) continue;
-        const [, address, value] = m;
+        const address = m[1] ?? "", value = m[2] ?? "";
         last = `${sheet}!${address}`;
         if (value.startsWith("=")) {
           formulaCount++;
