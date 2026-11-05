@@ -1,5 +1,6 @@
 import { analyzeIntent } from "./intentAnalyzer";
 import { defaultSpec, DEFAULT_ADV } from "./compiler";
+import { analyzeWorkbookExtract, workbookContractConstraints, workbookOutputSchema } from "./workbookContract";
 import type { Archetype, IntentAnalysis, Specification, AdvancedControls } from "./types";
 
 export interface AssistantAnswers {
@@ -80,6 +81,8 @@ export function synthesizeRequest(source: string, answers: AssistantAnswers, doc
     "Never hide formula errors with IFERROR or turn links into static values as a default repair. Repair references only with evidence.",
     "Do not assume audit log column names. Validate the actual structure or request missing information.",
   ]));
+  const workbook = analyzeWorkbookExtract(source, documents);
+  if (excel || workbook.sheets.length) constraints.push(...workbookContractConstraints(workbook, ar));
   const docsWeight = answers.sources === "documents" ? 100 : answers.sources === "mixed" ? 70 : 0;
   const advanced: AdvancedControls = { ...DEFAULT_ADV, documents: documents.map(d => ({ ...d })), docsWeight,
     selfRedTeam: true, confidence: answers.format === "json" || answers.format === "code" ? "off" : "evidence_weighted",
@@ -89,7 +92,7 @@ export function synthesizeRequest(source: string, answers: AssistantAnswers, doc
   const specification: Specification = { ...spec, goal, constraints, components, advanced,
     persona: excel ? (ar ? "خبير Excel وVBA ومراجعة سلامة المصنفات" : "Excel VBA and workbook integrity specialist") : spec.persona,
     audience: answers.audience.trim(), outputFormat: answers.format,
-    outputSchema: answers.format === "json" ? '{"summary":"string","findings":[],"missing_inputs":[]}' : "",
+    outputSchema: answers.format === "json" ? '{"summary":"string","findings":[],"missing_inputs":[]}' : (excel ? workbookOutputSchema(ar) : ""),
     examples: answers.details.trim(), variables: [{ name: "input", description: ar ? "المدخلات والملفات المتاحة" : "Available inputs and files", example: documents.map(d => d.name).join(", ") }],
   };
   return { source: source.trim(), specification, inputValues: assistantInputValues(specification) };

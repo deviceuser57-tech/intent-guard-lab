@@ -249,6 +249,7 @@ export function Workbench() {
     source: string;
     analysis: IntentAnalysis;
     specification: Specification;
+    inputValues: Record<string, string>;
   } | null>(null);
 
   useEffect(() => {
@@ -538,6 +539,7 @@ export function Workbench() {
               setPlaygroundInitialValues(adopted.inputValues);
               setPlaygroundRevision((revision) => revision + 1);
               setTab("compiled");
+              requestAnimationFrame(() => contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
             }}
           />
           {analysis && report && evalR && (

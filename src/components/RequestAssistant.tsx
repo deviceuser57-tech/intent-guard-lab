@@ -6,6 +6,7 @@ import { defaultSpec } from "@/lib/prompt/compiler";
 import { REQUEST_TEMPLATES, matchTemplates, type RequestTemplate } from "@/lib/prompt/templates";
 import { synthesizeRequest, type AssistantAnswers, type AssistantDraft } from "@/lib/prompt/requestAssistant";
 import { readAssistantFile } from "@/lib/prompt/assistantFiles";
+import { analyzeWorkbookExtract } from "@/lib/prompt/workbookContract";
 import type { AdvancedControls, Archetype, Specification } from "@/lib/prompt/types";
 
 const field = "w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -30,6 +31,7 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
   const [draft, setDraft] = useState<AssistantDraft | null>(null);
   const matches = useMemo(() => matchTemplates(source || input), [source, input]);
   const text = (en: string, arabic: string) => ar ? arabic : en;
+  const workbook = useMemo(() => analyzeWorkbookExtract(source || input, documents), [source, input, documents]);
   const questionLabels = [text("What should the finished result contain?", "ما الذي تريد استلامه في النهاية؟"), text("Who is the result for, and what must be preserved?", "لمن النتيجة، وما الشروط التي يجب الالتزام بها؟"), text("Which inputs and output style should be used?", "ما المدخلات وشكل النتيجة المطلوب؟")];
 
   function start(nextSource: string, suggest = true) {
@@ -66,6 +68,13 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   }
 
+  function quickAdopt() {
+    try {
+      const d = synthesizeRequest(source, answers, documents, lang, override || undefined);
+      setDraft(d); onAdopt(d); setStage("adopted");
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  }
+
   function updateSpec<K extends keyof Specification>(key: K, value: Specification[K]) {
     setDraft(current => current ? { ...current, specification: { ...current.specification, [key]: value } } : current);
   }
@@ -87,6 +96,12 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
       <ul className="space-y-1">
         {documents.map(d => <li key={d.name} className="flex items-center gap-2 border-b py-2 text-xs"><FileSpreadsheet className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 break-all">{d.name}</span><Button size="icon" variant="ghost" aria-label={`${text("Remove", "حذف")} ${d.name}`} onClick={() => setDocuments(current => current.filter(f => f.name !== d.name))}><X className="h-4 w-4" /></Button></li>)}
       </ul>
+      {workbook.sheets.length > 0 && <p role="status" className="text-xs text-muted-foreground">
+        {text(
+          `Workbook understood: ${workbook.sheets.length} sheets · ${workbook.formulaCount} formulas · ${workbook.errorCells.length} error cells · ${workbook.externalLinks.length} external links${workbook.auditSheets.length ? ` · audit sheet: ${workbook.auditSheets.join(", ")}` : ""}. These go into the output contract.`,
+          `تم فهم المصنف: ${workbook.sheets.length} أوراق · ${workbook.formulaCount} معادلة · ${workbook.errorCells.length} خلايا بأخطاء · ${workbook.externalLinks.length} روابط خارجية${workbook.auditSheets.length ? ` · ورقة المراجعة: ${workbook.auditSheets.join("، ")}` : ""}. ستُضاف إلى عقد المخرجات.`,
+        )}
+      </p>}
       {error && <p role="alert" className="whitespace-pre-wrap text-sm text-destructive">{error}</p>}
     </div>
   );
@@ -133,7 +148,7 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
           </div>}
           <div className="flex flex-wrap justify-between gap-2">
             <Button variant="ghost" disabled={step === 0 || busy} onClick={() => setStep(step - 1)}><ChevronRight className="h-4 w-4 ltr:rotate-180" />{text("Back", "السابق")}</Button>
-            <div className="flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={review}>{text("Review now", "مراجعة الطلب الآن")}</Button><Button disabled={busy} onClick={() => step < 2 ? setStep(step + 1) : review()}>{text(step < 2 ? "Next" : "Prepare request", step < 2 ? "التالي" : "تجهيز الطلب")}<Send className="h-4 w-4" /></Button></div>
+            <div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy} onClick={quickAdopt}><Sparkles className="h-4 w-4" />{text("Use smart defaults & generate", "استخدم الافتراضيات الذكية وولّد")}</Button><Button variant="outline" disabled={busy} onClick={review}>{text("Review now", "مراجعة الطلب الآن")}</Button><Button disabled={busy} onClick={() => step < 2 ? setStep(step + 1) : review()}>{text(step < 2 ? "Next" : "Prepare request", step < 2 ? "التالي" : "تجهيز الطلب")}<Send className="h-4 w-4" /></Button></div>
           </div>
         </div>}
         {stage === "review" && draft && <div className="mt-4 space-y-4">
@@ -154,7 +169,7 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
             <div><dt className="text-muted-foreground">{text("Input files", "ملفات المدخلات")}</dt><dd className="break-all">{documents.map(d => d.name).join("، ") || text("None attached", "لا توجد ملفات مرفقة")}</dd></div>
             <div><dt className="text-muted-foreground">{text("Pre-answer self-check", "مراجعة الرد قبل إصداره")}</dt><dd>{text("Enabled in generated instructions; not an executed security test", "مفعّلة ضمن التعليمات؛ ليست اختبارًا أمنيًا منفّذًا")}</dd></div>
           </dl>
-          <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { setStage("dialogue"); setStep(2); }}>{text("Edit answers", "تعديل الإجابات")}</Button><Button disabled={!draft.specification.goal.trim() || busy} onClick={() => { onAdopt(draft); setStage("adopted"); }}><Check className="h-4 w-4" />{text("Adopt request and settings", "اعتماد الطلب والإعدادات")}</Button></div>
+          <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => { setStage("dialogue"); setStep(2); }}>{text("Edit answers", "تعديل الإجابات")}</Button><Button disabled={!draft.specification.goal.trim() || busy} onClick={() => { onAdopt(draft); setStage("adopted"); }}><Check className="h-4 w-4" />{text("Adopt & generate prompt", "اعتماد وتوليد البرومبت")}</Button></div>
         </div>}
       </div>
     </div>

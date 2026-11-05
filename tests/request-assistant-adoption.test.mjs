@@ -19,11 +19,16 @@ async function loadTypeScript(path, transform = (source) => source) {
 
 const analyzer = await loadTypeScript("src/lib/prompt/intentAnalyzer.ts");
 globalThis.__requestAssistantTestAnalyzer = analyzer;
+globalThis.__requestAssistantTestWorkbook = await loadTypeScript("src/lib/prompt/workbookContract.ts");
 const assistant = await loadTypeScript("src/lib/prompt/requestAssistant.ts", (source) =>
   source
     .replace(
       'import { analyzeIntent } from "./intentAnalyzer";',
       "const { analyzeIntent } = globalThis.__requestAssistantTestAnalyzer;",
+    )
+    .replace(
+      'import { analyzeWorkbookExtract, workbookContractConstraints, workbookOutputSchema } from "./workbookContract";',
+      "const { analyzeWorkbookExtract, workbookContractConstraints, workbookOutputSchema } = globalThis.__requestAssistantTestWorkbook;",
     )
     .replace(
       'import { defaultSpec, DEFAULT_ADV } from "./compiler";',
