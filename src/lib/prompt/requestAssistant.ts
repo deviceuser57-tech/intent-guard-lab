@@ -109,7 +109,7 @@ export function assistantInputValues(spec: Specification): Record<string, string
   const documents = spec.advanced?.documents ?? [];
   const values: Record<string, string> = {};
   for (const v of spec.variables ?? []) if (v.example) values[v.name] = v.example;
-  values.user_request = values.user_request || spec.goal;
-  values.input = documents.length ? documents.map(d => `${d.name}\n${d.content}`).join("\n\n") : spec.goal;
+  values["user_request"] = values["user_request"] || spec.goal;
+  values["input"] = documents.length ? documents.map(d => `${d.name}\n${d.content}`).join("\n\n") : spec.goal;
   return values;
 }
