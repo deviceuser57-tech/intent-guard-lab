@@ -93,12 +93,23 @@ export function synthesizeRequest(source: string, answers: AssistantAnswers, doc
     persona: excel ? (ar ? "خبير Excel وVBA ومراجعة سلامة المصنفات" : "Excel VBA and workbook integrity specialist") : spec.persona,
     audience: answers.audience.trim(), outputFormat: answers.format,
     outputSchema: answers.format === "json" ? '{"summary":"string","findings":[],"missing_inputs":[]}' : (excel ? workbookOutputSchema(ar) : ""),
-    examples: answers.details.trim(), variables: [{ name: "input", description: ar ? "المدخلات والملفات المتاحة" : "Available inputs and files", example: documents.map(d => d.name).join(", ") }],
+    examples: answers.details.trim(), variables: [
+      { name: "user_request", description: ar ? "طلب المستخدم الأصلي" : "Original user request", example: source.trim() },
+      { name: "input", description: ar ? "المدخلات والملفات المتاحة" : "Available inputs and files", example: documents.map(d => d.name).join(", ") },
+      ...(answers.deliverable.trim() ? [{ name: "deliverable", description: ar ? "النتيجة المطلوبة" : "Requested deliverable", example: answers.deliverable.trim() }] : []),
+      ...(answers.audience.trim() ? [{ name: "audience", description: ar ? "الجمهور المستهدف" : "Target audience", example: answers.audience.trim() }] : []),
+      ...(answers.constraints.trim() ? [{ name: "constraints", description: ar ? "الشروط المتفق عليها" : "Agreed constraints", example: answers.constraints.trim() }] : []),
+      ...(workbook.sheets.length || workbook.requestedSheets.length ? [{ name: "target_sheets", description: ar ? "أوراق العمل المستهدفة" : "Target worksheets", example: [...new Set([...workbook.sheets, ...workbook.requestedSheets])].join(", ") }] : []),
+    ],
   };
   return { source: source.trim(), specification, inputValues: assistantInputValues(specification) };
 }
 
 export function assistantInputValues(spec: Specification): Record<string, string> {
   const documents = spec.advanced?.documents ?? [];
-  return { user_request: spec.goal, input: documents.length ? documents.map(d => `${d.name}\n${d.content}`).join("\n\n") : spec.goal };
+  const values: Record<string, string> = {};
+  for (const v of spec.variables ?? []) if (v.example) values[v.name] = v.example;
+  values.user_request = values.user_request || spec.goal;
+  values.input = documents.length ? documents.map(d => `${d.name}\n${d.content}`).join("\n\n") : spec.goal;
+  return values;
 }

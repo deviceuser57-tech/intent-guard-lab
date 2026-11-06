@@ -1,10 +1,10 @@
 import { useMemo, useState, type ChangeEvent } from "react";
-import { Bot, Check, ChevronLeft, ChevronRight, FileSpreadsheet, Paperclip, Send, Sparkles, X } from "lucide-react";
+import { Bot, Check, ChevronLeft, ChevronRight, FileSpreadsheet, LayoutGrid, Paperclip, Search, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { analyzeIntent } from "@/lib/prompt/intentAnalyzer";
 import { defaultSpec } from "@/lib/prompt/compiler";
-import { REQUEST_TEMPLATES, matchTemplates, type RequestTemplate } from "@/lib/prompt/templates";
-import { synthesizeRequest, type AssistantAnswers, type AssistantDraft } from "@/lib/prompt/requestAssistant";
+import { REQUEST_TEMPLATES, TEMPLATE_CATEGORIES, matchTemplates, searchTemplates, templateAnswers, type RequestTemplate, type TemplateCategory } from "@/lib/prompt/templates";
+import { assistantInputValues, synthesizeRequest, type AssistantAnswers, type AssistantDraft } from "@/lib/prompt/requestAssistant";
 import { readAssistantFile } from "@/lib/prompt/assistantFiles";
 import { analyzeWorkbookExtract } from "@/lib/prompt/workbookContract";
 import type { AdvancedControls, Archetype, Specification } from "@/lib/prompt/types";
@@ -29,6 +29,10 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [draft, setDraft] = useState<AssistantDraft | null>(null);
+  const [browse, setBrowse] = useState(false);
+  const [category, setCategory] = useState<TemplateCategory | "all">("all");
+  const [query, setQuery] = useState("");
+  const browsed = useMemo(() => searchTemplates(query, category), [query, category]);
   const matches = useMemo(() => matchTemplates(source || input), [source, input]);
   const text = (en: string, arabic: string) => ar ? arabic : en;
   const workbook = useMemo(() => analyzeWorkbookExtract(source || input, documents), [source, input, documents]);
@@ -46,6 +50,21 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
   function chooseTemplate(template: RequestTemplate, preserveIdea = false) {
     const task = preserveIdea ? `${source}\n\n${template.task[lang]}` : template.task[lang];
     onInput(task); start(task, false);
+    const filled = templateAnswers(template, lang);
+    setAnswers({ ...filled, sources: documents.length ? "documents" : filled.sources });
+    setBrowse(false);
+  }
+
+  function generateFromTemplate(template: RequestTemplate) {
+    try {
+      const task = template.task[lang];
+      onInput(task); setSource(task); setBrowse(false);
+      const filled = templateAnswers(template, lang);
+      const a = { ...filled, sources: documents.length ? "documents" as const : filled.sources };
+      setAnswers(a);
+      const d = synthesizeRequest(task, a, documents, lang, override || template.archetype);
+      setDraft(d); onAdopt(d); setStage("adopted");
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   }
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
@@ -112,9 +131,25 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
         <h3 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" />{text("Start with an example", "ابدأ بمثال جاهز")}</h3>
         <span className="text-xs font-medium text-success">{text("Free · local guidance · no credits", "مجاني · إرشاد محلي · دون كريدت")}</span>
       </div>
-      <div className="assistant-template-strip flex gap-2 overflow-x-auto pb-3" aria-label={text("Request templates", "قوالب الطلبات")}>
-        {REQUEST_TEMPLATES.map(template => <Button key={template.id} variant="outline" onClick={() => chooseTemplate(template)} className="h-auto min-h-10 shrink-0 gap-2 whitespace-normal text-start"><FileSpreadsheet className="h-4 w-4 text-primary" />{template.title[lang]}</Button>)}
+      <div className="mb-2 flex flex-wrap items-center gap-2" role="tablist" aria-label={text("Template categories", "تصنيفات القوالب")}>
+        {([{ id: "all" as const, label: { ar: "الكل", en: "All" } }, ...TEMPLATE_CATEGORIES]).map(c => <Button key={c.id} role="tab" aria-selected={category === c.id} size="sm" variant={category === c.id ? "default" : "ghost"} onClick={() => setCategory(c.id)}>{c.label[lang]}</Button>)}
+        <Button size="sm" variant="outline" className="ms-auto" onClick={() => setBrowse(v => !v)}><LayoutGrid className="h-4 w-4" />{browse ? text("Close library", "إغلاق المكتبة") : text(`Browse all (${REQUEST_TEMPLATES.length})`, `تصفح الكل (${REQUEST_TEMPLATES.length})`)}</Button>
       </div>
+      {!browse && <div className="assistant-template-strip flex gap-2 overflow-x-auto pb-3" aria-label={text("Request templates", "قوالب الطلبات")}>
+        {searchTemplates("", category).map(template => <Button key={template.id} variant="outline" onClick={() => chooseTemplate(template)} className="h-auto min-h-10 shrink-0 gap-2 whitespace-normal text-start"><FileSpreadsheet className="h-4 w-4 text-primary" />{template.title[lang]}</Button>)}
+      </div>}
+      {browse && <section className="mb-4 space-y-3 rounded-md border p-3" aria-label={text("Template library", "مكتبة القوالب")}>
+        <label className="relative block"><Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" /><input className={`${field} ps-9`} value={query} onChange={e => setQuery(e.target.value)} placeholder={text("Search templates…", "ابحث في القوالب…")} aria-label={text("Search templates", "ابحث في القوالب")} /></label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {browsed.map(tpl => <article key={tpl.id} className="space-y-2 rounded-md border p-3">
+            <div className="flex items-start justify-between gap-2"><h4 className="text-sm font-semibold">{tpl.title[lang]}</h4><span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{TEMPLATE_CATEGORIES.find(c => c.id === tpl.category)?.label[lang]}</span></div>
+            <p className="text-xs text-muted-foreground">{tpl.summary[lang]}</p>
+            <p className="text-xs"><span className="text-muted-foreground">{text("Delivers: ", "المخرجات: ")}</span>{tpl.defaults.deliverable[lang]}</p>
+            <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => generateFromTemplate(tpl)}><Sparkles className="h-4 w-4" />{text("Generate now", "توليد فوري")}</Button><Button size="sm" variant="outline" onClick={() => chooseTemplate(tpl)}>{text("Customize step by step", "تخصيص خطوة بخطوة")}</Button></div>
+          </article>)}
+          {!browsed.length && <p className="text-sm text-muted-foreground">{text("No templates match.", "لا توجد قوالب مطابقة.")}</p>}
+        </div>
+      </section>}
       <div className="assistant-workspace border-y py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="flex items-center gap-2 font-semibold text-primary"><Bot className="h-5 w-5" />{text("Request assistant", "مساعد صياغة الطلب")}</h3>
@@ -163,6 +198,10 @@ export function RequestAssistant({ lang, input, override, onInput, onAdopt }: Pr
           <label className="block space-y-1 text-sm"><span>{text("Output schema", "بنية المخرجات المطلوبة")}</span><textarea rows={2} className={field} value={draft.specification.outputSchema} onChange={e => updateSpec("outputSchema", e.target.value)} /></label>
           <label className="block space-y-1 text-sm"><span>{text("Examples", "أمثلة")}</span><textarea rows={2} className={field} value={draft.specification.examples} onChange={e => updateSpec("examples", e.target.value)} /></label>
           <label className="block space-y-1 text-sm"><span>{text("Agreed constraints", "الشروط المعتمدة")}</span><textarea rows={4} className={field} value={draft.specification.constraints.join("\n")} onChange={e => updateSpec("constraints", e.target.value.split("\n").filter(Boolean))} /></label>
+          <section aria-label={text("Variables", "المتغيرات")} className="space-y-2">
+            <h5 className="text-sm font-semibold">{text("Auto-filled variables", "المتغيرات المعبأة تلقائيًا")}</h5>
+            {draft.specification.variables.map((v, i) => <label key={v.name} className="grid gap-1 text-sm sm:grid-cols-[10rem_1fr] sm:items-center"><code className="text-xs text-primary">{`{{${v.name}}}`}</code><input className={field} value={v.example} onChange={e => { const value = e.target.value; setDraft(cur => { if (!cur) return cur; const variables = cur.specification.variables.map((x, j) => j === i ? { ...x, example: value } : x); const specification = { ...cur.specification, variables }; return { ...cur, specification, inputValues: assistantInputValues(specification) }; }); }} /></label>)}
+          </section>
           <dl className="assistant-summary grid gap-2 border-y py-3 text-sm sm:grid-cols-2">
             <div><dt className="text-muted-foreground">{text("Output format", "شكل المخرجات")}</dt><dd>{draft.specification.outputFormat}</dd></div>
             <div><dt className="text-muted-foreground">{text("Document commitment", "الالتزام بالملفات")}</dt><dd>{draft.specification.advanced?.docsWeight}%</dd></div>
